@@ -190,6 +190,21 @@ Exemplo:
 <NavLink to="/profile">Perfil</NavLink>
 ```
 
+### GameStatsPills
+
+- **Local:** `src/components/GameStatsPills.tsx` (não em `ui/`; importar como `import GameStatsPills from '../components/GameStatsPills'`).
+- **Props:** `wins`, `losses`, `draws` (números); `compact?` (opcional — se `true`, usa layout compacto).
+- **Variantes:** **default** — três pills em coluna (etiqueta + número), para estatísticas gerais (ex.: card "Jogo da Velha" no Perfil); **compact** — pills em linha (etiqueta e número lado a lado), menos padding, para listas (ex.: estatísticas vs. amigo na Lista de amigos).
+- **Estilo:** fundo `--bg-elevated`, bordas `--radius-md`; Vitórias com cor/borda `--success`, Derrotas com `--danger`, Empates com `--border`/`--text-muted`. Inclui `aria-label` com o resumo das estatísticas.
+- **Uso:** Exibir estatísticas de jogos (vitórias, derrotas, empates) de forma consistente; reutilizar em ranking ou detalhe de jogo no futuro.
+
+Exemplo:
+
+```tsx
+<GameStatsPills wins={5} losses={2} draws={1} />
+<GameStatsPills wins={1} losses={0} draws={0} compact />
+```
+
 ---
 
 ## 5. Páginas e rotas

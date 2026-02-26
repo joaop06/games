@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { api } from '../api/client'
 import { Card } from '../components/ui'
 import FriendsSection from '../components/FriendsSection'
+import GameStatsPills from '../components/GameStatsPills'
 
 export default function Profile() {
   const { user } = useAuth()
@@ -33,9 +34,9 @@ export default function Profile() {
               Jogo da Velha
             </h2>
             {tttStats != null ? (
-              <p style={{ marginBottom: 'var(--space-2)' }}>
-                Vitórias: <strong>{tttStats.wins}</strong> · Derrotas: <strong>{tttStats.losses}</strong> · Empates: <strong>{tttStats.draws}</strong>
-              </p>
+              <div style={{ marginBottom: 'var(--space-3)' }}>
+                <GameStatsPills wins={tttStats.wins} losses={tttStats.losses} draws={tttStats.draws} />
+              </div>
             ) : (
               <p style={{ color: 'var(--text-muted)' }}>Carregando estatísticas...</p>
             )}

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { useRealtime } from '../context/RealtimeContext'
 import { Button, Card, Input, PageSection } from './ui'
+import GameStatsPills from './GameStatsPills'
 
 type Friend = { id: string; username: string; createdAt: string }
 type Invite = { id: string; fromUser: { id: string; username: string }; createdAt: string }
@@ -238,13 +239,34 @@ export default function FriendsSection() {
                     gap: 'var(--space-2)',
                   }}
                 >
-                  <div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 'var(--space-2)',
+                      minWidth: 0,
+                    }}
+                  >
                     <span>{f.username}</span>
                     {vsStats[f.id] != null && (
-                      <span style={{ marginLeft: 'var(--space-3)', color: 'var(--text-muted)', fontSize: 'var(--size-sm)' }}>
-                        Você {vsStats[f.id].wins} × {vsStats[f.id].losses} {f.username}
-                        {vsStats[f.id].draws > 0 && ` · ${vsStats[f.id].draws} empate(s)`}
-                      </span>
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          alignItems: 'center',
+                          gap: 'var(--space-2)',
+                        }}
+                      >
+                        <span style={{ fontSize: 'var(--size-sm)', color: 'var(--text-muted)' }}>
+                          Jogo da Velha:
+                        </span>
+                        <GameStatsPills
+                          wins={vsStats[f.id].wins}
+                          losses={vsStats[f.id].losses}
+                          draws={vsStats[f.id].draws}
+                          compact
+                        />
+                      </div>
                     )}
                   </div>
                   <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
