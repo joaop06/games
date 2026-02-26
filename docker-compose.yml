@@ -38,6 +38,7 @@ services:
     environment:
       API_URL: http://backend:3000
       FRONTEND_PORT: ${FRONTEND_PORT:-5173}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-}
     volumes:
       - ./frontend:/app
       - /app/node_modules
