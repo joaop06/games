@@ -35,7 +35,10 @@ export default function RealtimeToastsHandler() {
       }
 
       if (msg.type === 'game_invite') {
-        if (inMatch) return
+        if (inMatch) {
+          addUnreadNotification()
+          return
+        }
         const username = msg.fromUser?.username ?? 'Alguém'
         const matchId = msg.matchId
         showToast({

@@ -88,6 +88,11 @@ export const api = {
         status: string
         fromUser: { id: string; username: string }
       } | null
+      gameInvite: {
+        matchId: string
+        fromUser?: { id: string; username: string }
+        gameType: string
+      } | null
     }>
   }> {
     return request('/api/notifications')

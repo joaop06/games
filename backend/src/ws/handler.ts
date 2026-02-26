@@ -10,11 +10,88 @@ import {
   currentTurn,
   type Board,
 } from "../lib/tic-tac-toe.js";
-import { buildMatchState, TIC_TAC_TOE_GAME_TYPE } from "../routes/games/tic-tac-toe.js";
+import {
+  buildMatchState,
+  TIC_TAC_TOE_GAME_TYPE,
+  areFriends,
+} from "../routes/games/tic-tac-toe.js";
 
 type Connection = { ws: WebSocket; userId: string };
 const matchConnections = new Map<string, Set<Connection>>();
 const userConnections = new Map<string, Set<WebSocket>>();
+
+type QueueEntry = { userId: string; joinedAt: number };
+const matchmakingQueue = new Map<string, QueueEntry[]>();
+
+function removeFromQueue(gameType: string, userId: string) {
+  const q = matchmakingQueue.get(gameType);
+  if (!q) return;
+  const idx = q.findIndex((e) => e.userId === userId);
+  if (idx !== -1) q.splice(idx, 1);
+  if (q.length === 0) matchmakingQueue.delete(gameType);
+}
+
+async function tryMatchTicTacToe() {
+  const gameType = TIC_TAC_TOE_GAME_TYPE;
+  const q = matchmakingQueue.get(gameType);
+  if (!q || q.length < 2) return;
+
+  let playerXId: string;
+  let playerOId: string;
+  let idxA = 0;
+  let idxB = 1;
+  let foundNonFriend = false;
+  for (let i = 0; i < q.length && !foundNonFriend; i++) {
+    for (let j = i + 1; j < q.length && !foundNonFriend; j++) {
+      const uA = q[i].userId;
+      const uB = q[j].userId;
+      if (!(await areFriends(uA, uB))) {
+        playerXId = uA;
+        playerOId = uB;
+        idxA = i;
+        idxB = j;
+        foundNonFriend = true;
+      }
+    }
+  }
+  if (!foundNonFriend) {
+    playerXId = q[0].userId;
+    playerOId = q[1].userId;
+    idxA = 0;
+    idxB = 1;
+  }
+
+  q.splice(idxB, 1);
+  q.splice(idxA, 1);
+  if (q.length === 0) matchmakingQueue.delete(gameType);
+
+  const match = await prisma.match.create({
+    data: {
+      gameType: TIC_TAC_TOE_GAME_TYPE,
+      playerXId: playerXId!,
+      playerOId: playerOId!,
+      status: "in_progress",
+    },
+    include: {
+      playerX: { select: { id: true, username: true } },
+      playerO: { select: { id: true, username: true } },
+      moves: true,
+    },
+  });
+  const state = buildMatchState(match);
+  sendToUser(playerXId!, {
+    type: "match_ready",
+    matchId: match.id,
+    gameType: TIC_TAC_TOE_GAME_TYPE,
+    match: state,
+  });
+  sendToUser(playerOId!, {
+    type: "match_ready",
+    matchId: match.id,
+    gameType: TIC_TAC_TOE_GAME_TYPE,
+    match: state,
+  });
+}
 
 function send(ws: WebSocket, payload: object) {
   if (ws.readyState === WebSocket.OPEN) {
@@ -46,7 +123,7 @@ export function sendToUser(userId: string, payload: object) {
   }
 }
 
-function broadcastMatch(matchId: string, payload: object) {
+export function broadcastMatch(matchId: string, payload: object) {
   const conns = matchConnections.get(matchId);
   if (!conns) return;
   for (const { ws } of conns) {
@@ -140,13 +217,45 @@ export async function registerWebSocket(server: FastifyInstance) {
     let currentMatchId: string | null = null;
 
     socket.on("message", async (raw: Buffer) => {
-      let data: { type?: string; matchId?: string; position?: number };
+      let data: { type?: string; matchId?: string; position?: number; gameType?: string };
       try {
         data = JSON.parse(raw.toString());
       } catch {
         send(socket, { type: "error", code: "invalid_json", message: "Invalid JSON" });
         return;
       }
+
+      if (data.type === "join_queue") {
+        const gameType = data.gameType ?? TIC_TAC_TOE_GAME_TYPE;
+        if (gameType !== TIC_TAC_TOE_GAME_TYPE) {
+          send(socket, { type: "error", code: "invalid_payload", message: "Unsupported game type" });
+          return;
+        }
+        await prisma.match.updateMany({
+          where: {
+            gameType: TIC_TAC_TOE_GAME_TYPE,
+            status: "waiting",
+            playerXId: userId,
+          },
+          data: { status: "abandoned" },
+        });
+        removeFromQueue(gameType, userId);
+        let q = matchmakingQueue.get(gameType);
+        if (!q) {
+          q = [];
+          matchmakingQueue.set(gameType, q);
+        }
+        q.push({ userId, joinedAt: Date.now() });
+        await tryMatchTicTacToe();
+        return;
+      }
+
+      if (data.type === "leave_queue") {
+        const gameType = data.gameType ?? TIC_TAC_TOE_GAME_TYPE;
+        removeFromQueue(gameType, userId);
+        return;
+      }
+
       if (data.type === "join_match") {
         const matchId = data.matchId;
         if (!matchId || typeof matchId !== "string") {
@@ -276,6 +385,7 @@ export async function registerWebSocket(server: FastifyInstance) {
     socket.on("close", () => {
       removeUserConnection(userId, socket);
       if (currentMatchId) removeConnection(currentMatchId, socket);
+      removeFromQueue(TIC_TAC_TOE_GAME_TYPE, userId);
     });
   });
 }

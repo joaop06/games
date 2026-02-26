@@ -31,6 +31,12 @@ export type WsMessage =
       gameType: string
     }
   | { type: 'game_invite_opponent_busy'; opponentUsername: string }
+  | {
+      type: 'match_ready'
+      matchId: string
+      gameType: string
+      match: import('./client').TicTacToeMatchState
+    }
 
 function getWsBaseUrl(): string {
   const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'

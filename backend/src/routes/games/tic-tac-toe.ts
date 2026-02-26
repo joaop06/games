@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { prisma } from "../../lib/db.js";
 import { requireAuth } from "../../lib/auth.js";
-import { sendToUser } from "../../ws/handler.js";
+import { sendToUser, broadcastMatch } from "../../ws/handler.js";
 import {
   createTicTacToeMatchSchema,
   listMatchesQuerySchema,
@@ -19,7 +19,7 @@ import {
 export const TIC_TAC_TOE_GAME_TYPE = "tic_tac_toe";
 const GAME_TYPE = TIC_TAC_TOE_GAME_TYPE;
 
-async function areFriends(userIdA: string, userIdB: string): Promise<boolean> {
+export async function areFriends(userIdA: string, userIdB: string): Promise<boolean> {
   const [idA, idB] = [userIdA, userIdB].sort();
   const friendship = await prisma.friendship.findUnique({
     where: { userAId_userBId: { userAId: idA, userBId: idB } },
@@ -110,6 +110,16 @@ async function ticTacToeRoutes(fastify: FastifyInstance) {
         }
         status = "waiting";
       }
+      if (!opponentUserId) {
+        await prisma.match.updateMany({
+          where: {
+            gameType: GAME_TYPE,
+            status: "waiting",
+            playerXId: request.userId,
+          },
+          data: { status: "abandoned" },
+        });
+      }
       const match = await prisma.match.create({
         data: {
           gameType: GAME_TYPE,
@@ -124,6 +134,13 @@ async function ticTacToeRoutes(fastify: FastifyInstance) {
         },
       });
       if (opponentUserId) {
+        await prisma.notification.create({
+          data: {
+            userId: opponentUserId,
+            type: "game_invite",
+            matchId: match.id,
+          } as { userId: string; type: string; matchId: string },
+        });
         sendToUser(opponentUserId, {
           type: "game_invite",
           matchId: match.id,
@@ -223,7 +240,11 @@ async function ticTacToeRoutes(fastify: FastifyInstance) {
           moves: true,
         },
       });
+      await prisma.notification.deleteMany({
+        where: { matchId: match.id, type: "game_invite" } as { matchId: string; type: string },
+      });
       const state = buildMatchState(updated);
+      broadcastMatch(match.id, { type: "match_state", ...state });
       return reply.send({ match: state });
     }
   );

@@ -47,13 +47,15 @@ model FriendInvite {
 model Notification {
   id             String   @id @default(cuid())
   userId         String   @map("user_id")
-  type           String   // e.g. "friend_invite"
+  type           String   // e.g. "friend_invite" | "game_invite"
   friendInviteId String?  @map("friend_invite_id")
+  matchId        String?  @map("match_id")
   read           Boolean  @default(false)
   createdAt      DateTime @default(now()) @map("created_at")
 
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   friendInvite FriendInvite? @relation(fields: [friendInviteId], references: [id], onDelete: Cascade)
+  match        Match?      @relation(fields: [matchId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("notifications")
@@ -86,6 +88,7 @@ model Match {
   playerO User?  @relation("PlayerO", fields: [playerOId], references: [id], onDelete: Cascade)
   winner  User?  @relation("Winner", fields: [winnerId], references: [id], onDelete: SetNull)
   moves   Move[]
+  notifications Notification[]
 
   @@index([status])
   @@index([gameType])

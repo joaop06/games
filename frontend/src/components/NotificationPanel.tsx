@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useRealtime } from '../context/RealtimeContext'
 import { api } from '../api/client'
 import { Button } from './ui'
@@ -12,6 +13,11 @@ type NotificationItem = {
     id: string
     status: string
     fromUser: { id: string; username: string }
+  } | null
+  gameInvite: {
+    matchId: string
+    fromUser?: { id: string; username: string }
+    gameType: string
   } | null
 }
 
@@ -90,6 +96,7 @@ const BADGE_STYLE: React.CSSProperties = {
 }
 
 export default function NotificationPanel() {
+  const navigate = useNavigate()
   const { unreadCount, setUnreadCount } = useRealtime()
   const [open, setOpen] = useState(false)
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
@@ -102,7 +109,7 @@ export default function NotificationPanel() {
       const res = await api.getNotifications()
       const seen = new Set<string>()
       const deduped = res.notifications.filter((n: NotificationItem) => {
-        const key = n.friendInvite?.id ?? n.id
+        const key = n.gameInvite?.matchId ?? n.friendInvite?.id ?? n.id
         if (seen.has(key)) return false
         seen.add(key)
         return true
@@ -126,7 +133,7 @@ export default function NotificationPanel() {
     api.getNotifications().then((res) => {
       const seen = new Set<string>()
       const deduped = res.notifications.filter((n: NotificationItem) => {
-        const key = n.friendInvite?.id ?? n.id
+        const key = n.gameInvite?.matchId ?? n.friendInvite?.id ?? n.id
         if (seen.has(key)) return false
         seen.add(key)
         return true
@@ -162,6 +169,15 @@ export default function NotificationPanel() {
       setNotifications((prev) =>
         prev.filter((n) => n.id !== notificationId)
       )
+    } catch {}
+  }
+
+  const handleAcceptGameInvite = async (matchId: string, notificationId: string) => {
+    try {
+      await api.joinTicTacToeMatch(matchId)
+      setNotifications((prev) => prev.filter((n) => n.id !== notificationId))
+      setOpen(false)
+      navigate(`/games/tic-tac-toe/match/${matchId}`)
     } catch {}
   }
 
@@ -203,6 +219,7 @@ export default function NotificationPanel() {
             <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
               {notifications.map((n) => {
                 const inv = n.friendInvite
+                const gameInv = n.gameInvite
                 return (
                   <li key={n.id} style={ITEM_STYLE}>
                     {n.type === 'friend_invite' && inv && (
@@ -237,6 +254,28 @@ export default function NotificationPanel() {
                             </Button>
                           </div>
                         )}
+                      </>
+                    )}
+                    {n.type === 'game_invite' && gameInv && (
+                      <>
+                        <span style={{ color: 'var(--text-primary)' }}>
+                          {gameInv.fromUser?.username ?? 'Alguém'} te desafiou para Jogo da Velha
+                        </span>
+                        <div
+                          style={{
+                            marginTop: 'var(--space-2)',
+                            display: 'flex',
+                            gap: 'var(--space-2)',
+                          }}
+                        >
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={() => handleAcceptGameInvite(gameInv.matchId, n.id)}
+                          >
+                            Aceitar
+                          </Button>
+                        </div>
                       </>
                     )}
                   </li>

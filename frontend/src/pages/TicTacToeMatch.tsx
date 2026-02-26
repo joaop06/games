@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useRealtime } from '../context/RealtimeContext'
-import type { TicTacToeMatchState } from '../api/client'
+import { api, type TicTacToeMatchState } from '../api/client'
 import Board from '../components/tic-tac-toe/Board'
 import Button from '../components/ui/Button'
 
@@ -22,10 +22,13 @@ export default function TicTacToeMatch() {
   const { matchId } = useParams<{ matchId: string }>()
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { connection, subscribe, isConnected } = useRealtime()
+  const { connection, subscribe, isConnected, showToast } = useRealtime()
   const [state, setState] = useState<TicTacToeMatchState>(emptyState)
   const [error, setError] = useState<string | null>(null)
   const [connecting, setConnecting] = useState(true)
+  const [rematchLoading, setRematchLoading] = useState(false)
+  const [friendIds, setFriendIds] = useState<Set<string>>(new Set())
+  const [addFriendStatus, setAddFriendStatus] = useState<'idle' | 'loading' | 'sent' | 'already_friends'>('idle')
 
   const myRole: 'X' | 'O' | null =
     user && state.playerX?.id === user.id ? 'X' : user && state.playerO?.id === user.id ? 'O' : null
@@ -73,6 +76,63 @@ export default function TicTacToeMatch() {
 
   const opponentName =
     myRole === 'X' ? (state.playerO?.username ?? 'Aguardando...') : (state.playerX?.username ?? 'Aguardando...')
+
+  const opponent = state.playerX && state.playerO && user
+    ? (state.playerX.id === user.id ? state.playerO : state.playerX)
+    : null
+
+  useEffect(() => {
+    if (state.status !== 'finished' || !opponent?.id) return
+    api.getFriends().then((res) => {
+      setFriendIds(new Set(res.friends.map((f) => f.id)))
+    }).catch(() => {})
+  }, [state.status, opponent?.id])
+
+  const handleAddFriend = async () => {
+    if (!opponent?.username) return
+    setAddFriendStatus('loading')
+    setError(null)
+    try {
+      await api.inviteFriend(opponent.username)
+      setAddFriendStatus('sent')
+    } catch (e: unknown) {
+      const msg = (e instanceof Error ? e.message : '') || ''
+      if (msg.includes('Already friends')) {
+        setAddFriendStatus('already_friends')
+      } else if (msg.includes('Invite already sent')) {
+        setAddFriendStatus('sent')
+      } else {
+        setError(msg || 'Não foi possível enviar convite.')
+        setAddFriendStatus('idle')
+      }
+    }
+  }
+
+  const handleNewMatch = async () => {
+    if (!opponent?.id) {
+      navigate('/games/tic-tac-toe')
+      return
+    }
+    setRematchLoading(true)
+    setError(null)
+    try {
+      const res = await api.createTicTacToeMatch(opponent.id)
+      if (res.opponentBusy) {
+        showToast({
+          type: 'game_invite_opponent_busy',
+          username: opponent.username ?? 'Oponente',
+        })
+        return
+      }
+      if (res.match) {
+        navigate(`/games/tic-tac-toe/match/${res.match.id}`)
+      }
+    } catch {
+      setError('Não foi possível iniciar nova partida.')
+    } finally {
+      setRematchLoading(false)
+    }
+  }
 
   if (!matchId) {
     return (
@@ -135,8 +195,33 @@ export default function TicTacToeMatch() {
       />
 
       {isFinished && (
-        <div style={{ marginTop: 'var(--space-5)' }}>
-          <Button onClick={() => navigate('/games/tic-tac-toe')}>Nova partida</Button>
+        <div style={{ marginTop: 'var(--space-5)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+          <Button onClick={handleNewMatch} disabled={rematchLoading}>
+            {rematchLoading ? 'Criando...' : opponent ? `Nova partida (contra ${opponent.username})` : 'Nova partida'}
+          </Button>
+          {opponent && !friendIds.has(opponent.id) && (
+            <>
+              {addFriendStatus === 'idle' && (
+                <Button variant="ghost" size="sm" onClick={handleAddFriend}>
+                  Adicionar como amigo
+                </Button>
+              )}
+              {addFriendStatus === 'loading' && (
+                <span style={{ color: 'var(--text-muted)', fontSize: 'var(--size-sm)' }}>Enviando convite...</span>
+              )}
+              {addFriendStatus === 'sent' && (
+                <span style={{ color: 'var(--text-muted)', fontSize: 'var(--size-sm)' }}>Convite enviado</span>
+              )}
+              {addFriendStatus === 'already_friends' && (
+                <span style={{ color: 'var(--text-muted)', fontSize: 'var(--size-sm)' }}>Já são amigos</span>
+              )}
+            </>
+          )}
+          {opponent && (
+            <Button variant="ghost" size="sm" onClick={() => navigate('/games/tic-tac-toe')}>
+              Voltar ao lobby
+            </Button>
+          )}
         </div>
       )}
     </div>

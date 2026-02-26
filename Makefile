@@ -11,12 +11,12 @@ help:
 	@echo "Games Platform - Comandos disponíveis:"
 	@echo ""
 	@echo "  Docker:"
-	@echo "    make up              - Sobe todos os serviços (db, backend, frontend)"
+	@echo "    make up              - Sobe todos os serviços (db, backend com migrations, frontend)"
 	@echo "    make down            - Para e remove os containers"
 	@echo "    make build           - Constrói as imagens Docker"
 	@echo "    make reload          - Para, reconstrói imagens e sobe de novo (aplica alterações)"
 	@echo "    make deploy          - Deploy produção: setup + build + up (frontend sobe após backend healthy)"
-	@echo "    make dev             - Sobe em modo DEV com hot reload (volumes montados, sem rebuild)"
+	@echo "    make dev             - Sobe em modo DEV com hot reload (backend executa migrations no start)"
 	@echo "    make dev-down        - Para os containers do modo dev"
 	@echo "    make dev-build       - Reconstrói imagens do modo dev (use após mudar deps)"
 	@echo "    make logs            - Mostra logs de todos os serviços"
@@ -65,14 +65,14 @@ reload: down
 deploy: setup
 	docker compose down
 	docker compose up -d --build
-	@echo "Deploy concluído. Backend roda migrations no start; frontend só sobe após backend healthy."
+	@echo "Deploy concluído. Backend executa 'prisma migrate deploy' no start; frontend só sobe após backend healthy."
 
 # --- Docker Dev (hot reload) ---
 DEV_COMPOSE = -f docker-compose.yml -f docker-compose.dev.yml
 
 dev: setup
 	docker compose $(DEV_COMPOSE) up -d --build
-	@echo "Modo dev ativo. Alterações em backend/ e frontend/ recarregam automaticamente."
+	@echo "Modo dev ativo. Backend executa migrations no start; alterações em backend/ e frontend/ recarregam automaticamente."
 
 dev-down:
 	docker compose $(DEV_COMPOSE) down

@@ -16,6 +16,11 @@ async function notificationRoutes(fastify: FastifyInstance) {
             fromUser: { select: { id: true, username: true } },
           },
         },
+        match: {
+          include: {
+            playerX: { select: { id: true, username: true } },
+          },
+        },
       },
     });
     return reply.send({
@@ -31,6 +36,16 @@ async function notificationRoutes(fastify: FastifyInstance) {
               fromUser: n.friendInvite.fromUser,
             }
           : null,
+        gameInvite:
+          n.type === "game_invite" && n.match
+            ? {
+                matchId: n.matchId,
+                fromUser: n.match.playerX
+                  ? { id: n.match.playerX.id, username: n.match.playerX.username }
+                  : undefined,
+                gameType: "tic_tac_toe",
+              }
+            : null,
       })),
     });
   });

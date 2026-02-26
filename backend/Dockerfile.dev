@@ -1,9 +1,11 @@
 # Desenvolvimento: deps + prisma generate; código montado via volume, tsx watch para hot reload
 FROM node:22-alpine
+RUN apk add --no-cache wget
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci
 COPY prisma ./prisma
 RUN npx prisma generate
 EXPOSE 3000
-CMD ["sh", "-c", "npx prisma generate && npm run dev"]
+# Migrations antes do dev para manter o schema alinhado ao subir o container (make dev / compose dev)
+CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma generate && npm run dev"]
