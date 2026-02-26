@@ -7,6 +7,11 @@ function isInMatchPath(pathname: string): boolean {
   return /^\/games\/tic-tac-toe\/match\//.test(pathname)
 }
 
+function getMatchIdFromPath(pathname: string): string | null {
+  const m = pathname.match(/\/games\/tic-tac-toe\/match\/([^/]+)/)
+  return m ? m[1] : null
+}
+
 export default function RealtimeToastsHandler() {
   const { subscribe, showToast, addUnreadNotification } = useRealtime()
   const location = useLocation()
@@ -35,10 +40,12 @@ export default function RealtimeToastsHandler() {
       }
 
       if (msg.type === 'game_invite') {
-        if (inMatch) {
+        const currentMatchId = getMatchIdFromPath(pathname)
+        if (inMatch && currentMatchId === msg.matchId) {
           addUnreadNotification()
           return
         }
+        addUnreadNotification()
         const username = msg.fromUser?.username ?? 'Alguém'
         const matchId = msg.matchId
         showToast({

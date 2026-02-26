@@ -114,6 +114,32 @@ async function ticTacToeRoutes(fastify: FastifyInstance) {
           ],
         });
         if (opponentInMatch) {
+          const invitedToThisMatch =
+            opponentInMatch.status === "waiting" &&
+            (await getRepository(Notification).findOne({
+              where: {
+                matchId: opponentInMatch.id,
+                type: "game_invite",
+                userId: request.userId,
+              },
+            }));
+          if (invitedToThisMatch) {
+            await getRepository(Match).update(
+              { id: opponentInMatch.id },
+              { playerOId: request.userId, status: "in_progress" }
+            );
+            const updated = await matchRepo.findOne({
+              where: { id: opponentInMatch.id },
+              relations: { playerX: true, playerO: true, moves: true },
+            })!;
+            await getRepository(Notification).delete({
+              matchId: opponentInMatch.id,
+              type: "game_invite",
+            });
+            const state = buildMatchState({ ...updated, moves: updated.moves ?? [] });
+            broadcastMatch(opponentInMatch.id, { type: "match_state", ...state });
+            return reply.status(201).send({ match: state });
+          }
           const opponent = await getRepository(User).findOne({
             where: { id: opponentUserId },
             select: { username: true },
