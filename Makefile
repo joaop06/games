@@ -1,7 +1,7 @@
 # Games Platform - Makefile de desenvolvimento
 # Uso: make <target>
 
-.PHONY: help setup up down build reload dev dev-down dev-build logs shell-backend shell-db \
+.PHONY: help setup up down build reload deploy dev dev-down dev-build logs shell-backend shell-db \
 	backend-install backend-dev backend-build backend-db-generate backend-db-migrate backend-db-push \
 	frontend-install frontend-dev frontend-build frontend-preview \
 	clean
@@ -15,12 +15,15 @@ help:
 	@echo "    make down            - Para e remove os containers"
 	@echo "    make build           - Constrói as imagens Docker"
 	@echo "    make reload          - Para, reconstrói imagens e sobe de novo (aplica alterações)"
+	@echo "    make deploy          - Deploy produção: setup + build + up (frontend sobe após backend healthy)"
 	@echo "    make dev             - Sobe em modo DEV com hot reload (volumes montados, sem rebuild)"
 	@echo "    make dev-down        - Para os containers do modo dev"
 	@echo "    make dev-build       - Reconstrói imagens do modo dev (use após mudar deps)"
 	@echo "    make logs            - Mostra logs de todos os serviços"
 	@echo "    make shell-backend   - Abre shell no container do backend"
 	@echo "    make shell-db        - Abre psql no container do banco"
+	@echo "  Deploy: Se o backend não subir por migração falhada (P3009), use: make shell-backend, depois"
+	@echo "    npx prisma migrate resolve --applied <migration_name> ou --rolled-back <migration_name>"
 	@echo ""
 	@echo "  Backend (local, em backend/):"
 	@echo "    make backend-install       - npm install no backend"
@@ -58,6 +61,12 @@ reload: down
 	docker compose build
 	docker compose up -d
 	@echo "Reload concluído. Containers rodando com as novas alterações."
+
+# --- Deploy (produção: migrations no backend, frontend só sobe quando backend está healthy) ---
+deploy: setup
+	docker compose build
+	docker compose up -d
+	@echo "Deploy concluído. Backend roda migrations no start; frontend só sobe após backend healthy."
 
 # --- Docker Dev (hot reload) ---
 DEV_COMPOSE = -f docker-compose.yml -f docker-compose.dev.yml

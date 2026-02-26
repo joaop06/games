@@ -32,4 +32,4 @@ jobs:
 
       - name: Build and start containers
         working-directory: ${{ env.APP_DIR }}
-        run: make reload
+        run: make deploy
