@@ -88,9 +88,14 @@ async function ticTacToeRoutes(fastify: FastifyInstance) {
         return reply.status(400).send({ error: "Validation failed", details: parsed.error.flatten() });
       }
       const { opponentUserId } = parsed.data;
+      if (!opponentUserId) {
+        return reply.status(400).send({
+          error: "opponentUserId required. Use the matchmaking queue to find a match, or provide opponentUserId to challenge a friend.",
+        });
+      }
       let playerOId: string | null = null;
       let status = "waiting";
-      if (opponentUserId) {
+      {
         if (opponentUserId === request.userId) {
           return reply.status(400).send({ error: "Cannot play against yourself" });
         }
@@ -151,12 +156,6 @@ async function ticTacToeRoutes(fastify: FastifyInstance) {
           return reply.status(200).send({ opponentBusy: true });
         }
         status = "waiting";
-      }
-      if (!opponentUserId) {
-        await getRepository(Match).update(
-          { gameType: GAME_TYPE, status: "waiting", playerXId: request.userId },
-          { status: "abandoned" }
-        );
       }
       const matchRepo = getRepository(Match);
       const match = matchRepo.create({

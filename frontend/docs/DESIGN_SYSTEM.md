@@ -110,7 +110,7 @@ Definidos em `src/index.css` na `:root`.
   - **Home:** grids de atalhos e jogos em 1 coluna no mobile; a partir de 480px, várias colunas (`auto-fill` com `minmax`).
   - **Login / Register:** card centralizado; padding da página menor no mobile; inputs e botão submit com min-height 44px.
   - **Friends:** formulário “Convidar” em coluna no mobile (input e botão full-width); a partir de 480px, linha com input flex e botão ao lado.
-  - **TicTacToe Lobby:** listas já em coluna; botões “Partida rápida” e “Entrar” com área de toque 44px.
+  - **TicTacToe Lobby:** listas já em coluna; botão "Procurar partida" e "Entrar" com área de toque 44px.
   - **TicTacToe Match:** cabeçalho com “← Lobby” e título permite quebra de linha; board centralizado com células responsivas (`clamp`); botões com altura tátil.
   - **Notificações:** painel dropdown com `max-width` limitado ao viewport no mobile (`calc(100vw - var(--space-8))`); ícone do sino com min 44px.
 

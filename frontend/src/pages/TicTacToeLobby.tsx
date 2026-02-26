@@ -12,7 +12,6 @@ export default function TicTacToeLobby() {
   const { connection, subscribe } = useRealtime()
   const [matches, setMatches] = useState<TicTacToeMatchListItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [creating, setCreating] = useState(false)
   const [searching, setSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -33,19 +32,6 @@ export default function TicTacToeLobby() {
     })
     return unsub
   }, [subscribe, navigate])
-
-  const handleCreateQuick = async () => {
-    setCreating(true)
-    setError(null)
-    try {
-      const { match } = await api.createTicTacToeMatch()
-      navigate(`/games/tic-tac-toe/match/${match.id}`)
-    } catch (e) {
-      setError((e as Error).message ?? 'Falha ao criar partida')
-    } finally {
-      setCreating(false)
-    }
-  }
 
   const handleSearchMatch = useCallback(() => {
     setError(null)
@@ -73,7 +59,7 @@ export default function TicTacToeLobby() {
     <div>
       <h1 style={{ fontFamily: 'var(--font-display)', marginBottom: 'var(--space-4)' }}>Jogo da Velha</h1>
       <p style={{ color: 'var(--text-muted)', marginBottom: 'var(--space-6)' }}>
-        Crie uma partida rápida (qualquer um pode entrar) ou desafie um amigo pela página de Amigos.
+        Entre na fila para jogar contra outro jogador ou desafie um amigo pela página de Amigos.
       </p>
 
       {error && (
@@ -90,7 +76,7 @@ export default function TicTacToeLobby() {
           <Button
             className="lobby-btn"
             onClick={handleSearchMatch}
-            disabled={creating || searching}
+            disabled={searching}
           >
             {searching ? 'Procurando oponente...' : 'Procurar partida'}
           </Button>
@@ -99,14 +85,6 @@ export default function TicTacToeLobby() {
               Cancelar
             </Button>
           )}
-          <Button
-            variant="ghost"
-            className="lobby-btn"
-            onClick={handleCreateQuick}
-            disabled={creating || searching}
-          >
-            {creating ? 'Criando...' : 'Partida rápida'}
-          </Button>
         </div>
       </section>
 
@@ -117,7 +95,7 @@ export default function TicTacToeLobby() {
         {loading ? (
           <p style={{ color: 'var(--text-muted)' }}>Carregando...</p>
         ) : myActiveMatches.length === 0 ? (
-          <p style={{ color: 'var(--text-muted)' }}>Nenhuma partida ativa. Crie uma acima.</p>
+          <p style={{ color: 'var(--text-muted)' }}>Nenhuma partida ativa. Procure uma partida acima.</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
             {myActiveMatches.map((m) => (
