@@ -96,15 +96,17 @@ async function friendRoutes(fastify: FastifyInstance) {
       if (existingInvite) {
         existingInvite.status = "pending";
         await inviteRepo.save(existingInvite);
-        invite = existingInvite;
+        invite = existingInvite as FriendInvite;
       } else {
-        invite = inviteRepo.create({
+        const newInvite = inviteRepo.create({
           id: randomUUID(),
           fromUserId: request.userId!,
           toUserId,
           status: "pending",
+          createdAt: new Date(),
         });
-        await inviteRepo.save(invite);
+        await inviteRepo.save(newInvite);
+        invite = newInvite as unknown as FriendInvite;
       }
       const inviteWithUsers = await inviteRepo.findOne({
         where: { id: invite.id },

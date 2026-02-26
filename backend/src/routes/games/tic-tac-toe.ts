@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import { In } from "typeorm";
 import { getRepository } from "../../lib/db.js";
 import { Match } from "../../entities/Match.js";
+import { Move } from "../../entities/Move.js";
 import { Friendship } from "../../entities/Friendship.js";
 import { User } from "../../entities/User.js";
 import { Notification } from "../../entities/Notification.js";
@@ -35,7 +36,7 @@ export async function areFriends(userIdA: string, userIdB: string): Promise<bool
   return !!friendship;
 }
 
-export function buildMatchState(match: {
+export type BuildMatchStateArg = {
   id: string;
   status: string;
   winnerId: string | null;
@@ -44,7 +45,9 @@ export function buildMatchState(match: {
   playerX?: { id: string; username: string };
   playerO?: { id: string; username: string } | null;
   moves: { position: number; playerId: string }[];
-}) {
+};
+
+export function buildMatchState(match: BuildMatchStateArg) {
   if (!match.playerOId) {
     return {
       id: match.id,
@@ -136,12 +139,16 @@ async function ticTacToeRoutes(fastify: FastifyInstance) {
             const updated = await matchRepo.findOne({
               where: { id: opponentInMatch.id },
               relations: { playerX: true, playerO: true, moves: true },
-            })!;
+            });
+            if (!updated) throw new Error("Match not found");
             await getRepository(Notification).delete({
               matchId: opponentInMatch.id,
               type: "game_invite",
             });
-            const state = buildMatchState({ ...updated, moves: updated.moves ?? [] });
+            const state = buildMatchState({
+              ...updated,
+              moves: (updated.moves ?? []).map((m: Move) => ({ position: m.position, playerId: m.playerId })),
+            } as BuildMatchStateArg);
             broadcastMatch(opponentInMatch.id, { type: "match_state", ...state });
             return reply.status(201).send({ match: state });
           }
@@ -169,7 +176,8 @@ async function ticTacToeRoutes(fastify: FastifyInstance) {
       const matchWithRelations = await matchRepo.findOne({
         where: { id: match.id },
         relations: { playerX: true, playerO: true, moves: true },
-      })!;
+      });
+      if (!matchWithRelations) throw new Error("Match not found");
       if (opponentUserId) {
         const notif = getRepository(Notification).create({
           id: randomUUID(),
@@ -189,8 +197,8 @@ async function ticTacToeRoutes(fastify: FastifyInstance) {
       }
       const state = buildMatchState({
         ...matchWithRelations,
-        moves: matchWithRelations.moves ?? [],
-      });
+        moves: (matchWithRelations.moves ?? []).map((m: Move) => ({ position: m.position, playerId: m.playerId })),
+      } as BuildMatchStateArg);
       return reply.status(201).send({ match: state });
     }
   );
@@ -240,8 +248,8 @@ async function ticTacToeRoutes(fastify: FastifyInstance) {
       if (!isPlayer) return reply.status(403).send({ error: "Not a player in this match" });
       const state = buildMatchState({
         ...match,
-        moves: match.moves ?? [],
-      });
+        moves: (match.moves ?? []).map((m: Move) => ({ position: m.position, playerId: m.playerId })),
+      } as BuildMatchStateArg);
       return reply.send({ match: state });
     }
   );
@@ -268,9 +276,13 @@ async function ticTacToeRoutes(fastify: FastifyInstance) {
       const updated = await getRepository(Match).findOne({
         where: { id: match.id },
         relations: { playerX: true, playerO: true, moves: true },
-      })!;
+      });
+      if (!updated) throw new Error("Match not found");
       await getRepository(Notification).delete({ matchId: match.id, type: "game_invite" });
-      const state = buildMatchState({ ...updated, moves: updated.moves ?? [] });
+      const state = buildMatchState({
+        ...updated,
+        moves: (updated.moves ?? []).map((m: Move) => ({ position: m.position, playerId: m.playerId })),
+      } as BuildMatchStateArg);
       broadcastMatch(match.id, { type: "match_state", ...state });
       return reply.send({ match: state });
     }

@@ -17,6 +17,7 @@ import {
 } from "../lib/tic-tac-toe.js";
 import {
   buildMatchState,
+  type BuildMatchStateArg,
   TIC_TAC_TOE_GAME_TYPE,
   areFriends,
 } from "../routes/games/tic-tac-toe.js";
@@ -82,8 +83,12 @@ async function tryMatchTicTacToe() {
   const matchWithRelations = await matchRepo.findOne({
     where: { id: match.id },
     relations: { playerX: true, playerO: true, moves: true },
-  })!;
-  const state = buildMatchState({ ...matchWithRelations, moves: matchWithRelations.moves ?? [] });
+  });
+  if (!matchWithRelations) throw new Error("Match not found");
+  const state = buildMatchState({
+    ...matchWithRelations,
+    moves: (matchWithRelations.moves ?? []).map((m: Move) => ({ position: m.position, playerId: m.playerId })),
+  } as BuildMatchStateArg);
   sendToUser(playerXId!, {
     type: "match_ready",
     matchId: match.id,
@@ -293,7 +298,10 @@ export async function registerWebSocket(server: FastifyInstance) {
           matchConnections.set(matchId, conns);
         }
         conns.add({ ws: socket, userId });
-        const state = buildMatchState({ ...match, moves: match.moves ?? [] });
+        const state = buildMatchState({
+          ...match,
+          moves: (match.moves ?? []).map((m: Move) => ({ position: m.position, playerId: m.playerId })),
+        } as BuildMatchStateArg);
         send(socket, { type: "match_state", ...state });
         return;
         }
@@ -334,7 +342,7 @@ export async function registerWebSocket(server: FastifyInstance) {
           return;
         }
         const board = boardFromMoves(
-          (match.moves ?? []).map((m) => ({ position: m.position, playerId: m.playerId })),
+          (match.moves ?? []).map((m: Move) => ({ position: m.position, playerId: m.playerId })),
           match.playerXId,
           match.playerOId
         );
@@ -357,7 +365,10 @@ export async function registerWebSocket(server: FastifyInstance) {
           position,
         });
         await moveRepo.save(move);
-        const newMoves = [...(match.moves ?? []), { position: move.position, playerId: move.playerId }];
+        const newMoves: { position: number; playerId: string }[] = [
+          ...(match.moves ?? []).map((m: Move) => ({ position: m.position, playerId: m.playerId })),
+          { position: move.position, playerId: move.playerId },
+        ];
         const newBoard = boardFromMoves(
           newMoves.map((m) => ({ position: m.position, playerId: m.playerId })),
           match.playerXId,
@@ -382,8 +393,8 @@ export async function registerWebSocket(server: FastifyInstance) {
         if (updatedMatch) {
           const state = buildMatchState({
             ...updatedMatch,
-            moves: updatedMatch.moves ?? [],
-          });
+            moves: (updatedMatch.moves ?? []).map((m: Move) => ({ position: m.position, playerId: m.playerId })),
+          } as BuildMatchStateArg);
           broadcastMatch(matchId, { type: "match_state", ...state });
         }
         return;
