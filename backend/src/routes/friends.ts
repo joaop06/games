@@ -61,8 +61,7 @@ async function friendRoutes(fastify: FastifyInstance) {
       if (targetUserId) {
         toUserId = targetUserId;
       } else if (username) {
-        const normalized = (username as string).trim().toLowerCase();
-        const user = await getRepository(User).findOne({ where: { username: normalized } });
+        const user = await getRepository(User).findOne({ where: { username } });
         if (!user) {
           return reply.status(404).send({ error: "User not found" });
         }

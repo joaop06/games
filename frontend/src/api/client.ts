@@ -27,7 +27,6 @@ async function request<T>(
 
 export type UserResponse = {
   id: string
-  email: string
   username: string
   createdAt: string
 }
@@ -40,10 +39,10 @@ export const api = {
     })
     return data!.user
   },
-  async register(email: string, username: string, password: string): Promise<UserResponse> {
+  async register(username: string, password: string): Promise<UserResponse> {
     const data = await request<{ user: UserResponse }>('/api/auth/register', {
       method: 'POST',
-      json: { email, username, password },
+      json: { username, password },
     })
     return data!.user
   },
@@ -52,6 +51,10 @@ export const api = {
   },
   async getMe(): Promise<UserResponse> {
     return request<UserResponse>('/api/users/me')
+  },
+  async checkUsername(username: string): Promise<{ exists: boolean }> {
+    const q = new URLSearchParams({ username })
+    return request<{ exists: boolean }>(`/api/users/check-username?${q.toString()}`)
   },
   async patchMe(body: { username?: string }): Promise<UserResponse> {
     return request<UserResponse>('/api/users/me', { method: 'PATCH', json: body })

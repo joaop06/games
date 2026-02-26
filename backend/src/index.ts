@@ -13,7 +13,15 @@ import { registerWebSocket } from "./ws/handler.js";
 
 const app = Fastify({ logger: true });
 
-await import("./lib/typeorm.js").then((m) => m.initDataSource());
+const { initDataSource, AppDataSource } = await import("./lib/typeorm.js");
+await initDataSource();
+try {
+  await AppDataSource.runMigrations();
+  app.log.info("Migrations completed");
+} catch (err) {
+  app.log.error(err, "Migrations failed");
+  process.exit(1);
+}
 
 await app.register(cookie, { secret: process.env.JWT_SECRET ?? "cookie-secret" });
 await app.register(cors, {

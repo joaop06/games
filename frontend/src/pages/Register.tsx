@@ -1,16 +1,18 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useUsernameCheck } from '../hooks/useUsernameCheck'
+import { normalizeUsername } from '../utils/username'
 import { Button, Card, Input } from '../components/ui'
 
 export default function Register() {
-  const [email, setEmail] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const { register, user, loading } = useAuth()
   const navigate = useNavigate()
+  const { exists: usernameExists } = useUsernameCheck(username)
 
   if (loading) {
     return (
@@ -38,11 +40,7 @@ export default function Register() {
     setError('')
     setSubmitting(true)
     try {
-      await register(
-        email.trim().toLowerCase(),
-        username.trim().toLowerCase(),
-        password.trim()
-      )
+      await register(username, password.trim())
       navigate('/', { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao cadastrar')
@@ -91,23 +89,27 @@ export default function Register() {
             </p>
           )}
           <Input
-            label="E-mail"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            autoComplete="email"
-          />
-          <Input
             label="Nome de usuário"
             type="text"
             value={username}
-            onChange={(e) => setUsername(e.target.value.trim().toLowerCase())}
+            onChange={(e) => setUsername(normalizeUsername(e.target.value))}
             required
             minLength={2}
             maxLength={32}
             autoComplete="username"
           />
+          {usernameExists === true && (
+            <p
+              style={{
+                color: 'var(--danger)',
+                marginTop: 'var(--space-1)',
+                marginBottom: 'var(--space-2)',
+                fontSize: 'var(--size-sm)',
+              }}
+            >
+              Nome de usuário já está em uso.
+            </p>
+          )}
           <Input
             label="Senha"
             type="password"

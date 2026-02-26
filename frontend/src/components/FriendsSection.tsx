@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { useRealtime } from '../context/RealtimeContext'
+import { useUsernameCheck } from '../hooks/useUsernameCheck'
+import { normalizeUsername } from '../utils/username'
 import { Button, Card, Input, PageSection } from './ui'
 import GameStatsPills from './GameStatsPills'
 
@@ -21,6 +23,7 @@ export default function FriendsSection() {
   const [challengingId, setChallengingId] = useState<string | null>(null)
   const [removingId, setRemovingId] = useState<string | null>(null)
   const [vsStats, setVsStats] = useState<Record<string, { wins: number; losses: number; draws: number }>>({})
+  const { exists: inviteUsernameExists } = useUsernameCheck(inviteUsername)
 
   useEffect(() => {
     let cancelled = false
@@ -70,12 +73,11 @@ export default function FriendsSection() {
 
   async function handleSendInvite(e: React.FormEvent) {
     e.preventDefault()
-    const username = inviteUsername.trim()
-    if (!username) return
+    if (!inviteUsername) return
     setError('')
     setLoadingInvite(true)
     try {
-      await api.inviteFriend(username)
+      await api.inviteFriend(inviteUsername)
       setInviteUsername('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao enviar convite')
@@ -155,7 +157,7 @@ export default function FriendsSection() {
               label="Nome de usuário"
               type="text"
               value={inviteUsername}
-              onChange={(e) => setInviteUsername(e.target.value)}
+              onChange={(e) => setInviteUsername(normalizeUsername(e.target.value))}
               placeholder="Nome de usuário"
             />
           </div>
@@ -169,6 +171,16 @@ export default function FriendsSection() {
             Enviar convite
           </Button>
         </form>
+        {inviteUsername.length >= 2 && inviteUsernameExists === true && (
+          <p style={{ color: 'var(--success)', fontSize: 'var(--size-sm)', marginTop: 'var(--space-2)' }}>
+            Usuário encontrado. Pode enviar o convite.
+          </p>
+        )}
+        {inviteUsername.length >= 2 && inviteUsernameExists === false && (
+          <p style={{ color: 'var(--text-muted)', fontSize: 'var(--size-sm)', marginTop: 'var(--space-2)' }}>
+            Nome de usuário não encontrado.
+          </p>
+        )}
         {error && (
           <p role="alert" style={{ color: 'var(--danger)', marginTop: 'var(--space-2)', fontSize: 'var(--size-sm)' }}>
             {error}

@@ -86,7 +86,7 @@ export default function Login() {
             </p>
           )}
           <Input
-            label="E-mail ou nome de usuário"
+            label="Nome de usuário"
             type="text"
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}

@@ -157,10 +157,10 @@ Exemplo:
 
 ```tsx
 <Input
-  label="E-mail"
-  type="email"
-  value={email}
-  onChange={(e) => setEmail(e.target.value)}
+  label="Nome de usuário"
+  type="text"
+  value={username}
+  onChange={(e) => setUsername(e.target.value)}
   required
 />
 <Input label="Senha" type="password" error={errors.password} />

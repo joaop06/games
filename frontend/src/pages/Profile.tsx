@@ -26,7 +26,6 @@ export default function Profile() {
         <>
           <Card glow style={{ marginBottom: 'var(--space-5)' }}>
             <p><strong>Usuário:</strong> {user.username}</p>
-            <p><strong>E-mail:</strong> {user.email}</p>
           </Card>
 
           <Card style={{ marginBottom: 'var(--space-4)' }}>

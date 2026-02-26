@@ -18,6 +18,7 @@ export const AppDataSource = new DataSource({
   url: process.env.DATABASE_URL,
   synchronize: false,
   logging: isDev ? ["error", "warn", "schema"] : ["error"],
+  migrations: ["dist/migrations/*.js"],
   entities: [
     User,
     FriendInvite,

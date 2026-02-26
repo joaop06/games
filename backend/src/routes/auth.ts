@@ -11,7 +11,7 @@ import {
   verifyRefreshToken,
 } from "../lib/auth.js";
 import { requireAuth } from "../lib/auth.js";
-import { registerSchema, loginSchema } from "../lib/validation.js";
+import { registerSchema, loginSchema, normalizeUsernameRaw } from "../lib/validation.js";
 
 async function authRoutes(fastify: FastifyInstance) {
   const authRateLimit = { config: { rateLimit: { max: 5, timeWindow: "1 minute" } } };
@@ -20,23 +20,26 @@ async function authRoutes(fastify: FastifyInstance) {
   }>("/api/auth/register", authRateLimit, async (request: FastifyRequest<{ Body: unknown }>, reply: FastifyReply) => {
     const parsed = registerSchema.safeParse(request.body);
     if (!parsed.success) {
-      return reply.status(400).send({ error: "Validation failed", details: parsed.error.flatten() });
-    }
-    const { email, username, password } = parsed.data;
-    const existing = await getRepository(User).findOne({
-      where: [{ email }, { username }],
-    });
-    if (existing) {
-      return reply.status(409).send({
-        error: existing.email === email ? "Email already in use" : "Username already in use",
+      const flattened = parsed.error.flatten();
+      const firstFieldError =
+        Object.values(flattened.fieldErrors).flat().find(Boolean) ?? flattened.formErrors[0];
+      const errorMessage =
+        typeof firstFieldError === "string" ? firstFieldError : "Validation failed";
+      return reply.status(400).send({
+        error: errorMessage,
+        details: flattened,
       });
+    }
+    const { username, password } = parsed.data;
+    const existing = await getRepository(User).findOne({ where: { username } });
+    if (existing) {
+      return reply.status(409).send({ error: "Username already in use" });
     }
     const passwordHash = await bcrypt.hash(password, 12);
     const userRepo = getRepository(User);
     const now = new Date();
     const user = userRepo.create({
       id: randomUUID(),
-      email,
       username,
       passwordHash,
       createdAt: now,
@@ -45,7 +48,7 @@ async function authRoutes(fastify: FastifyInstance) {
     await userRepo.save(user);
     setAuthCookies(reply, user.id);
     return reply.status(201).send({
-      user: { id: user.id, email: user.email, username: user.username, createdAt: user.createdAt },
+      user: { id: user.id, username: user.username, createdAt: user.createdAt },
     });
   });
 
@@ -57,19 +60,15 @@ async function authRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ error: "Validation failed", details: parsed.error.flatten() });
     }
     const { login, password } = parsed.data;
-    const loginNorm = login.trim();
-    const isEmail = loginNorm.includes("@");
-    const user = isEmail
-      ? await getRepository(User).findOne({ where: { email: loginNorm.toLowerCase() } })
-      : await getRepository(User).findOne({ where: { username: loginNorm.toLowerCase() } });
+    const loginNorm = normalizeUsernameRaw(login);
+    const user = await getRepository(User).findOne({ where: { username: loginNorm } });
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
-      return reply.status(401).send({ error: "E-mail/usuário ou senha inválidos" });
+      return reply.status(401).send({ error: "Usuário ou senha inválidos" });
     }
     setAuthCookies(reply, user.id);
     return reply.send({
       user: {
         id: user.id,
-        email: user.email,
         username: user.username,
         createdAt: user.createdAt,
       },
@@ -100,7 +99,7 @@ async function authRoutes(fastify: FastifyInstance) {
     }
     const user = await getRepository(User).findOne({
       where: { id: payload.userId },
-      select: { id: true, email: true, username: true, createdAt: true },
+      select: { id: true, username: true, createdAt: true },
     });
     if (!user) {
       clearAuthCookies(reply);
@@ -108,7 +107,7 @@ async function authRoutes(fastify: FastifyInstance) {
     }
     setAuthCookies(reply, user.id);
     return reply.send({
-      user: { id: user.id, email: user.email, username: user.username, createdAt: user.createdAt },
+      user: { id: user.id, username: user.username, createdAt: user.createdAt },
     });
   });
 }
