@@ -148,6 +148,18 @@ Exemplo:
 <Card style={{ padding: 'var(--space-3)' }}>Item de lista</Card>
 ```
 
+### Alert
+
+- **Props:** `variant?` (`'error' | 'warning' | 'info'`), `children`, opcionalmente `style`, e props de `div`.
+- **Uso:** Exibir mensagens de feedback ao usuário (erro, aviso ou informação). Usar em formulários (login, cadastro, convites), páginas de jogo e em qualquer fluxo que precise destacar uma mensagem. Estilo: fundo `--bg-elevated`, borda e texto conforme a variante (`--danger` para erro, `--accent-purple` para aviso, `--accent` para info). Inclui `role="alert"` para acessibilidade.
+
+Exemplo:
+
+```tsx
+<Alert variant="error">Usuário ou senha inválidos.</Alert>
+<Alert variant="info" style={{ marginTop: 'var(--space-3)' }}>Mensagem informativa.</Alert>
+```
+
 ### Input
 
 - **Props:** `label` (obrigatório), `error?`, mais todas as props nativas de `<input>`.

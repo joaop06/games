@@ -4,7 +4,7 @@ import { api } from '../api/client'
 import { useRealtime } from '../context/RealtimeContext'
 import { useUsernameCheck } from '../hooks/useUsernameCheck'
 import { normalizeUsername } from '../utils/username'
-import { Button, Card, Input, PageSection } from './ui'
+import { Alert, Button, Card, Input, PageSection } from './ui'
 import GameStatsPills from './GameStatsPills'
 
 type Friend = { id: string; username: string; createdAt: string }
@@ -122,6 +122,7 @@ export default function FriendsSection() {
   }
 
   async function challengeFriend(friendId: string) {
+    if (!friendId || typeof friendId !== 'string' || !friendId.trim()) return
     setChallengingId(friendId)
     setChallengeError('')
     try {
@@ -182,9 +183,9 @@ export default function FriendsSection() {
           </p>
         )}
         {error && (
-          <p role="alert" style={{ color: 'var(--danger)', marginTop: 'var(--space-2)', fontSize: 'var(--size-sm)' }}>
+          <Alert variant="error" style={{ marginTop: 'var(--space-2)' }}>
             {error}
-          </p>
+          </Alert>
         )}
       </PageSection>
 
@@ -235,9 +236,9 @@ export default function FriendsSection() {
 
       <PageSection title="Lista de amigos">
         {challengeError && (
-          <p role="alert" style={{ color: 'var(--danger)', marginBottom: 'var(--space-2)', fontSize: 'var(--size-sm)' }}>
+          <Alert variant="error" style={{ marginBottom: 'var(--space-2)' }}>
             {challengeError}
-          </p>
+          </Alert>
         )}
         {friends.length === 0 ? (
           <p style={{ color: 'var(--text-muted)' }}>

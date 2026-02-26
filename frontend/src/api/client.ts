@@ -1,3 +1,5 @@
+import { getUserMessage } from '../lib/userMessages'
+
 const base = '' // proxy in dev forwards /api to backend
 
 async function request<T>(
@@ -16,8 +18,11 @@ async function request<T>(
     body: json !== undefined ? JSON.stringify(json) : init.body,
   })
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }))
-    throw new Error((err as { error?: string }).error ?? 'Request failed')
+    const errBody = await res.json().catch(() => ({ error: res.statusText })) as { error?: string; details?: unknown }
+    const message = errBody.error ?? res.statusText ?? 'Request failed'
+    const err = new Error(getUserMessage(message, res.status)) as Error & { details?: unknown }
+    if (errBody.details != null) err.details = errBody.details
+    throw err
   }
   if (res.status === 204 || res.headers.get('content-length') === '0') {
     return undefined as T
@@ -111,9 +116,10 @@ export const api = {
   async createTicTacToeMatch(
     opponentUserId?: string
   ): Promise<{ match: TicTacToeMatchState; opponentBusy?: boolean }> {
+    const id = typeof opponentUserId === 'string' ? opponentUserId.trim() : ''
     return request('/api/games/tic-tac-toe/matches', {
       method: 'POST',
-      json: opponentUserId != null ? { opponentUserId } : {},
+      json: id ? { opponentUserId: id } : {},
     })
   },
   async listTicTacToeMatches(params?: { status?: string; limit?: number }): Promise<{

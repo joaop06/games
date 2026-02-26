@@ -45,7 +45,10 @@ export const inviteFriendSchema = z
   );
 
 export const createTicTacToeMatchSchema = z.object({
-  opponentUserId: z.string().uuid().optional(),
+  opponentUserId: z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+    z.string().trim().min(1).max(64).optional()
+  ),
 });
 
 export const listMatchesQuerySchema = z.object({

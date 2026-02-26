@@ -52,9 +52,14 @@ async function friendRoutes(fastify: FastifyInstance) {
     "/api/friends/invite",
     async (request: FastifyRequest<{ Body: unknown }>, reply: FastifyReply) => {
       if (!request.userId) return reply.status(401).send({ error: "Unauthorized" });
-      const parsed = inviteFriendSchema.safeParse(request.body);
+      const parsed = inviteFriendSchema.safeParse(request.body ?? {});
       if (!parsed.success) {
-        return reply.status(400).send({ error: "Validation failed", details: parsed.error.flatten() });
+        const flattened = parsed.error.flatten();
+        const firstFieldError =
+          Object.values(flattened.fieldErrors).flat().find(Boolean) ?? flattened.formErrors[0];
+        const errorMessage =
+          typeof firstFieldError === "string" ? firstFieldError : "Validation failed";
+        return reply.status(400).send({ error: errorMessage, details: flattened });
       }
       const { username, userId: targetUserId } = parsed.data;
       let toUserId: string;

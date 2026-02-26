@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useRealtime } from '../context/RealtimeContext'
 import { api, type TicTacToeMatchListItem } from '../api/client'
-import Button from '../components/ui/Button'
-import Card from '../components/ui/Card'
+import { Alert, Button, Card } from '../components/ui'
 
 export default function TicTacToeLobby() {
   const navigate = useNavigate()
@@ -63,9 +62,9 @@ export default function TicTacToeLobby() {
       </p>
 
       {error && (
-        <p style={{ color: 'var(--danger)', marginBottom: 'var(--space-3)' }} role="alert">
+        <Alert variant="error" style={{ marginBottom: 'var(--space-3)' }}>
           {error}
-        </p>
+        </Alert>
       )}
 
       <section style={{ marginBottom: 'var(--space-6)' }}>

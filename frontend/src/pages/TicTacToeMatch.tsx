@@ -3,8 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useRealtime } from '../context/RealtimeContext'
 import { api, type TicTacToeMatchState } from '../api/client'
+import { getUserMessage } from '../lib/userMessages'
 import Board from '../components/tic-tac-toe/Board'
-import Button from '../components/ui/Button'
+import { Alert, Button } from '../components/ui'
 
 const emptyState: TicTacToeMatchState = {
   id: '',
@@ -49,7 +50,7 @@ export default function TicTacToeMatch() {
       setError(null)
       setConnecting(false)
     } else if (msg.type === 'error') {
-      setError(msg.message ?? msg.code ?? 'Erro')
+      setError(getUserMessage(msg.message ?? msg.code ?? ''))
       setConnecting(false)
     }
   }, [])
@@ -97,12 +98,12 @@ export default function TicTacToeMatch() {
       setAddFriendStatus('sent')
     } catch (e: unknown) {
       const msg = (e instanceof Error ? e.message : '') || ''
-      if (msg.includes('Already friends')) {
+      if (msg.includes('Already friends') || msg.includes('já são amigos')) {
         setAddFriendStatus('already_friends')
-      } else if (msg.includes('Invite already sent')) {
+      } else if (msg.includes('Invite already sent') || msg.includes('Convite já enviado')) {
         setAddFriendStatus('sent')
       } else {
-        setError(msg || 'Não foi possível enviar convite.')
+        setError(getUserMessage(msg) || 'Não foi possível enviar convite.')
         setAddFriendStatus('idle')
       }
     }
@@ -127,8 +128,8 @@ export default function TicTacToeMatch() {
       if (res.match) {
         navigate(`/games/tic-tac-toe/match/${res.match.id}`)
       }
-    } catch {
-      setError('Não foi possível iniciar nova partida.')
+    } catch (err) {
+      setError(err instanceof Error ? getUserMessage(err.message) : 'Não foi possível iniciar nova partida.')
     } finally {
       setRematchLoading(false)
     }
@@ -166,9 +167,9 @@ export default function TicTacToeMatch() {
       </div>
 
       {error && (
-        <p style={{ color: 'var(--danger)', marginBottom: 'var(--space-3)' }} role="alert">
+        <Alert variant="error" style={{ marginBottom: 'var(--space-3)' }}>
           {error}
-        </p>
+        </Alert>
       )}
 
       <p style={{ color: 'var(--text-muted)', marginBottom: 'var(--space-4)' }}>

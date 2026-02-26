@@ -18,7 +18,7 @@ async function authRoutes(fastify: FastifyInstance) {
   fastify.post<{
     Body: unknown;
   }>("/api/auth/register", authRateLimit, async (request: FastifyRequest<{ Body: unknown }>, reply: FastifyReply) => {
-    const parsed = registerSchema.safeParse(request.body);
+    const parsed = registerSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
       const flattened = parsed.error.flatten();
       const firstFieldError =
@@ -55,9 +55,14 @@ async function authRoutes(fastify: FastifyInstance) {
   fastify.post<{
     Body: unknown;
   }>("/api/auth/login", authRateLimit, async (request: FastifyRequest<{ Body: unknown }>, reply: FastifyReply) => {
-    const parsed = loginSchema.safeParse(request.body);
+    const parsed = loginSchema.safeParse(request.body ?? {});
     if (!parsed.success) {
-      return reply.status(400).send({ error: "Validation failed", details: parsed.error.flatten() });
+      const flattened = parsed.error.flatten();
+      const firstFieldError =
+        Object.values(flattened.fieldErrors).flat().find(Boolean) ?? flattened.formErrors[0];
+      const errorMessage =
+        typeof firstFieldError === "string" ? firstFieldError : "Validation failed";
+      return reply.status(400).send({ error: errorMessage, details: flattened });
     }
     const { login, password } = parsed.data;
     const loginNorm = normalizeUsernameRaw(login);

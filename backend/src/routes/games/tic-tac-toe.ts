@@ -86,9 +86,14 @@ async function ticTacToeRoutes(fastify: FastifyInstance) {
     "/api/games/tic-tac-toe/matches",
     async (request: FastifyRequest<{ Body: unknown }>, reply: FastifyReply) => {
       if (!request.userId) return reply.status(401).send({ error: "Unauthorized" });
-      const parsed = createTicTacToeMatchSchema.safeParse(request.body);
+      const parsed = createTicTacToeMatchSchema.safeParse(request.body ?? {});
       if (!parsed.success) {
-        return reply.status(400).send({ error: "Validation failed", details: parsed.error.flatten() });
+        const flattened = parsed.error.flatten();
+        const firstFieldError =
+          Object.values(flattened.fieldErrors).flat().find(Boolean) ?? flattened.formErrors[0];
+        const errorMessage =
+          typeof firstFieldError === "string" ? firstFieldError : "Validation failed";
+        return reply.status(400).send({ error: errorMessage, details: flattened });
       }
       const { opponentUserId } = parsed.data;
       if (!opponentUserId) {
@@ -207,9 +212,14 @@ async function ticTacToeRoutes(fastify: FastifyInstance) {
     "/api/games/tic-tac-toe/matches",
     async (request: FastifyRequest<{ Querystring: unknown }>, reply: FastifyReply) => {
       if (!request.userId) return reply.status(401).send({ error: "Unauthorized" });
-      const parsed = listMatchesQuerySchema.safeParse(request.query);
+      const parsed = listMatchesQuerySchema.safeParse(request.query ?? {});
       if (!parsed.success) {
-        return reply.status(400).send({ error: "Validation failed", details: parsed.error.flatten() });
+        const flattened = parsed.error.flatten();
+        const firstFieldError =
+          Object.values(flattened.fieldErrors).flat().find(Boolean) ?? flattened.formErrors[0];
+        const errorMessage =
+          typeof firstFieldError === "string" ? firstFieldError : "Validation failed";
+        return reply.status(400).send({ error: errorMessage, details: flattened });
       }
       const { status: statusFilter, limit } = parsed.data;
       const matchRepo = getRepository(Match);
@@ -328,9 +338,14 @@ async function ticTacToeRoutes(fastify: FastifyInstance) {
   fastify.get<{ Querystring: unknown }>(
     "/api/games/tic-tac-toe/leaderboard",
     async (request: FastifyRequest<{ Querystring: unknown }>, reply: FastifyReply) => {
-      const parsed = leaderboardQuerySchema.safeParse(request.query);
+      const parsed = leaderboardQuerySchema.safeParse(request.query ?? {});
       if (!parsed.success) {
-        return reply.status(400).send({ error: "Validation failed", details: parsed.error.flatten() });
+        const flattened = parsed.error.flatten();
+        const firstFieldError =
+          Object.values(flattened.fieldErrors).flat().find(Boolean) ?? flattened.formErrors[0];
+        const errorMessage =
+          typeof firstFieldError === "string" ? firstFieldError : "Validation failed";
+        return reply.status(400).send({ error: errorMessage, details: flattened });
       }
       const { limit } = parsed.data;
       const rows = await getRepository(UserGameStats).find({

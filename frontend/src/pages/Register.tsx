@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useUsernameCheck } from '../hooks/useUsernameCheck'
 import { normalizeUsername } from '../utils/username'
-import { Button, Card, Input } from '../components/ui'
+import { Alert, Button, Card, Input } from '../components/ui'
 
 export default function Register() {
   const [username, setUsername] = useState('')
@@ -77,16 +77,9 @@ export default function Register() {
         </h1>
         <form onSubmit={handleSubmit}>
           {error && (
-            <p
-              role="alert"
-              style={{
-                color: 'var(--danger)',
-                marginBottom: 'var(--space-4)',
-                fontSize: 'var(--size-sm)',
-              }}
-            >
+            <Alert variant="error" style={{ marginBottom: 'var(--space-4)' }}>
               {error}
-            </p>
+            </Alert>
           )}
           <Input
             label="Nome de usuário"
