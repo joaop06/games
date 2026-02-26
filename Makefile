@@ -58,14 +58,13 @@ build:
 	docker compose build
 
 reload: down
-	docker compose build
-	docker compose up -d
+	docker compose up -d --build || (echo ""; echo "Se o backend falhou, veja os logs: docker compose logs backend"; echo "Se for P3009 (migração falhada), resolva com:"; echo "  docker compose run --rm backend sh -c 'npx prisma migrate resolve --applied 20250226130000_normalize_username_lowercase'"; echo "  (ou use --rolled-back se a migração ainda não foi aplicada)"; echo "Depois: make reload"; exit 1)
 	@echo "Reload concluído. Containers rodando com as novas alterações."
 
 # --- Deploy (produção: migrations no backend, frontend só sobe quando backend está healthy) ---
 deploy: setup
-	docker compose build
-	docker compose up -d
+	docker compose down
+	docker compose up -d --build || (echo ""; echo "Se o backend falhou, veja os logs: docker compose logs backend"; echo "Se for P3009 (migração falhada), resolva com:"; echo "  docker compose run --rm backend sh -c 'npx prisma migrate resolve --applied 20250226130000_normalize_username_lowercase'"; echo "  (ou use --rolled-back se a migração ainda não foi aplicada)"; echo "Depois: make deploy"; exit 1)
 	@echo "Deploy concluído. Backend roda migrations no start; frontend só sobe após backend healthy."
 
 # --- Docker Dev (hot reload) ---
