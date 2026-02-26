@@ -73,4 +73,66 @@ export const api = {
   async rejectInvite(id: string): Promise<unknown> {
     return request(`/api/friends/invites/${id}/reject`, { method: 'POST' })
   },
+
+  async getWsToken(): Promise<{ token: string }> {
+    return request<{ token: string }>('/api/auth/ws-token')
+  },
+
+  async createTicTacToeMatch(opponentUserId?: string): Promise<{ match: TicTacToeMatchState }> {
+    return request('/api/games/tic-tac-toe/matches', {
+      method: 'POST',
+      json: opponentUserId != null ? { opponentUserId } : {},
+    })
+  },
+  async listTicTacToeMatches(params?: { status?: string; limit?: number }): Promise<{
+    matches: TicTacToeMatchListItem[]
+  }> {
+    const q = new URLSearchParams()
+    if (params?.status) q.set('status', params.status)
+    if (params?.limit != null) q.set('limit', String(params.limit))
+    const query = q.toString()
+    return request(`/api/games/tic-tac-toe/matches${query ? `?${query}` : ''}`)
+  },
+  async getTicTacToeMatch(matchId: string): Promise<{ match: TicTacToeMatchState }> {
+    return request(`/api/games/tic-tac-toe/matches/${matchId}`)
+  },
+  async joinTicTacToeMatch(matchId: string): Promise<{ match: TicTacToeMatchState }> {
+    return request(`/api/games/tic-tac-toe/matches/${matchId}/join`, { method: 'POST' })
+  },
+  async getTicTacToeStats(): Promise<{ stats: { wins: number; losses: number; draws: number } }> {
+    return request('/api/games/tic-tac-toe/stats')
+  },
+  async getTicTacToeStatsVsFriend(
+    friendId: string
+  ): Promise<{ stats: { wins: number; losses: number; draws: number } }> {
+    return request(`/api/games/tic-tac-toe/stats/vs-friend/${friendId}`)
+  },
+  async getTicTacToeLeaderboard(limit?: number): Promise<{
+    leaderboard: Array<{ rank: number; userId: string; username: string; wins: number; losses: number; draws: number }>
+  }> {
+    const q = limit != null ? `?limit=${limit}` : ''
+    return request(`/api/games/tic-tac-toe/leaderboard${q}`)
+  },
+}
+
+export type TicTacToeBoard = (null | 'X' | 'O')[]
+export type TicTacToeMatchState = {
+  id: string
+  gameType: string
+  status: string
+  winnerId: string | null
+  playerX: { id: string; username: string } | undefined
+  playerO: { id: string; username: string } | null
+  board: TicTacToeBoard
+  currentTurn: 'X' | 'O'
+  moves: Array<{ position: number; playerId: string }>
+}
+export type TicTacToeMatchListItem = {
+  id: string
+  status: string
+  winnerId: string | null
+  playerX: { id: string; username: string }
+  playerO: { id: string; username: string } | null
+  createdAt: string
+  finishedAt: string | null
 }

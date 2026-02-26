@@ -9,14 +9,15 @@ declare module "fastify" {
 }
 
 const JWT_SECRET = process.env.JWT_SECRET ?? "dev-secret-change-in-production";
-// TTL in seconds: 15 min, 7 days
+// TTL in seconds: 15 min, 7 days, 2 min for WS
 const ACCESS_TTL_SEC = 15 * 60;
 const REFRESH_TTL_SEC = 7 * 24 * 60 * 60;
+const WS_TTL_SEC = 2 * 60;
 
 const COOKIE_ACCESS = "accessToken";
 const COOKIE_REFRESH = "refreshToken";
 
-export type TokenPayload = { userId: string; type: "access" | "refresh" };
+export type TokenPayload = { userId: string; type: "access" | "refresh" | "ws" };
 
 export function signAccessToken(userId: string): string {
   return jwt.sign(
@@ -34,6 +35,14 @@ export function signRefreshToken(userId: string): string {
   );
 }
 
+export function signWsToken(userId: string): string {
+  return jwt.sign(
+    { userId, type: "ws" } as TokenPayload,
+    JWT_SECRET,
+    { expiresIn: WS_TTL_SEC }
+  );
+}
+
 export function verifyAccessToken(token: string): TokenPayload | null {
   try {
     const payload = jwt.verify(token, JWT_SECRET) as TokenPayload;
@@ -47,6 +56,15 @@ export function verifyRefreshToken(token: string): TokenPayload | null {
   try {
     const payload = jwt.verify(token, JWT_SECRET) as TokenPayload;
     return payload.type === "refresh" ? payload : null;
+  } catch {
+    return null;
+  }
+}
+
+export function verifyWsToken(token: string): TokenPayload | null {
+  try {
+    const payload = jwt.verify(token, JWT_SECRET) as TokenPayload;
+    return payload.type === "ws" ? payload : null;
   } catch {
     return null;
   }

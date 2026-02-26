@@ -60,6 +60,9 @@ export default function AppLayout() {
             <NavLink to="/friends" style={navLinkStyle}>
               Amigos
             </NavLink>
+            <NavLink to="/games/tic-tac-toe" style={navLinkStyle}>
+              Jogo da Velha
+            </NavLink>
             {user && (
               <>
                 <span style={{ color: 'var(--text-muted)', fontSize: 'var(--size-sm)' }}>

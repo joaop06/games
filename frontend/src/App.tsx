@@ -6,6 +6,8 @@ import Register from './pages/Register'
 import Home from './pages/Home'
 import Profile from './pages/Profile'
 import Friends from './pages/Friends'
+import TicTacToeLobby from './pages/TicTacToeLobby'
+import TicTacToeMatch from './pages/TicTacToeMatch'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -30,6 +32,8 @@ export default function App() {
         <Route index element={<Home />} />
         <Route path="profile" element={<Profile />} />
         <Route path="friends" element={<Friends />} />
+        <Route path="games/tic-tac-toe" element={<TicTacToeLobby />} />
+        <Route path="games/tic-tac-toe/match/:matchId" element={<TicTacToeMatch />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

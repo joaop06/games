@@ -20,10 +20,13 @@ Plataforma web para jogos multiplayer (jogo da velha, forca, etc.) com cadastro 
    ```bash
    docker compose up --build
    ```
+   Ou use `make reload` para reconstruir e subir.
 
 3. Acesse:
-   - **Frontend:** http://localhost:5173  
-   - **Backend (health):** http://localhost:3000/health  
+   - **Frontend:** http://localhost:*porta* — a porta vem do `.env` (`FRONTEND_PORT`; padrão `5173`). Ex.: se `FRONTEND_PORT=6000`, use http://localhost:6000  
+   - **Backend (health):** http://localhost:3000/health (apenas na rede interna; o frontend faz proxy de `/api` e `/health`)
+
+   **Atenção:** Evite usar a porta **5000** no navegador. O Firefox (e outros) bloqueiam essa porta por segurança. Use 5173, 6000 ou outra porta configurada em `FRONTEND_PORT`.  
 
 As migrations do Prisma são aplicadas automaticamente ao iniciar o backend.
 
@@ -69,6 +72,7 @@ Consulte `.env.example`. Principais:
 - `POSTGRES_*` – credenciais do PostgreSQL (usadas pelo Compose e pelo backend).
 - `JWT_SECRET` – segredo para assinatura dos JWTs (obrigatório em produção).
 - `CORS_ORIGIN` – origin permitida pelo backend (padrão: `http://localhost:5173`).
+- `FRONTEND_PORT` – porta do servidor de desenvolvimento do frontend (padrão: `5173`). Ex.: `6000`; evite `5000` (bloqueada pelo Firefox).
 - No container do frontend, `API_URL` é usada pelo proxy do Vite (no Compose já está como `http://backend:3000`).
 
 ## Estrutura do repositório

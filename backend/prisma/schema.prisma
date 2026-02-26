@@ -15,10 +15,17 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  sentInvites     FriendInvite[] @relation("SentInvites")
-  receivedInvites FriendInvite[] @relation("ReceivedInvites")
-  friendshipsAsA  Friendship[]   @relation("UserA")
-  friendshipsAsB  Friendship[]   @relation("UserB")
+  sentInvites       FriendInvite[]    @relation("SentInvites")
+  receivedInvites   FriendInvite[]    @relation("ReceivedInvites")
+  friendshipsAsA    Friendship[]     @relation("UserA")
+  friendshipsAsB    Friendship[]     @relation("UserB")
+  matchesAsX        Match[]          @relation("PlayerX")
+  matchesAsO         Match[]          @relation("PlayerO")
+  matchesWon         Match[]          @relation("Winner")
+  moves              Move[]
+  gameStats          UserGameStats[]
+  friendRecordsAsA   FriendGameRecord[] @relation("UserA")
+  friendRecordsAsB   FriendGameRecord[] @relation("UserB")
 }
 
 model FriendInvite {
@@ -46,4 +53,68 @@ model Friendship {
 
   @@unique([userAId, userBId])
   @@map("friendships")
+}
+
+model Match {
+  id         String    @id @default(cuid())
+  gameType   String    @map("game_type") // e.g. "tic_tac_toe"
+  playerXId  String    @map("player_x_id")
+  playerOId  String?   @map("player_o_id")
+  status     String    @default("waiting") // waiting | in_progress | finished | abandoned
+  winnerId   String?   @map("winner_id")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  finishedAt DateTime? @map("finished_at")
+
+  playerX User   @relation("PlayerX", fields: [playerXId], references: [id], onDelete: Cascade)
+  playerO User?  @relation("PlayerO", fields: [playerOId], references: [id], onDelete: Cascade)
+  winner  User?  @relation("Winner", fields: [winnerId], references: [id], onDelete: SetNull)
+  moves   Move[]
+
+  @@index([status])
+  @@index([gameType])
+  @@map("matches")
+}
+
+model Move {
+  id        String   @id @default(cuid())
+  matchId   String   @map("match_id")
+  playerId  String   @map("player_id")
+  position  Int      // 0-8
+  createdAt DateTime @default(now()) @map("created_at")
+
+  match  Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player User  @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, position])
+  @@map("moves")
+}
+
+model UserGameStats {
+  userId    String   @map("user_id")
+  gameType  String   @map("game_type")
+  wins      Int      @default(0)
+  losses    Int      @default(0)
+  draws     Int      @default(0)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, gameType])
+  @@map("user_game_stats")
+}
+
+model FriendGameRecord {
+  userAId   String   @map("user_a_id")
+  userBId   String   @map("user_b_id")
+  gameType  String   @map("game_type")
+  winsA     Int      @default(0) @map("wins_a")
+  winsB     Int      @default(0) @map("wins_b")
+  draws     Int      @default(0)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  userA User @relation("UserA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB User @relation("UserB", fields: [userBId], references: [id], onDelete: Cascade)
+
+  @@id([userAId, userBId, gameType])
+  @@map("friend_game_records")
 }

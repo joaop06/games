@@ -94,8 +94,20 @@ export default function Home() {
             gap: 'var(--space-4)',
           }}
         >
-          {[1, 2, 3].map((i) => (
-            <Card key={i} style={{ textAlign: 'center' }}>
+          <Link to="/games/tic-tac-toe" style={{ textDecoration: 'none', color: 'inherit' }}>
+            <Card
+              style={{
+                textAlign: 'center',
+                transition: 'box-shadow var(--transition-normal)',
+                height: '100%',
+              }}
+              onMouseOver={(e: React.MouseEvent<HTMLDivElement>) => {
+                e.currentTarget.style.boxShadow = 'var(--shadow-card), 0 0 16px var(--glow)'
+              }}
+              onMouseOut={(e: React.MouseEvent<HTMLDivElement>) => {
+                e.currentTarget.style.boxShadow = 'var(--shadow-card)'
+              }}
+            >
               <div
                 style={{
                   aspectRatio: '1',
@@ -105,15 +117,16 @@ export default function Home() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: 'var(--text-muted)',
-                  fontSize: 'var(--size-sm)',
+                  color: 'var(--accent)',
+                  fontSize: '2rem',
+                  fontWeight: 700,
                 }}
               >
-                Em breve
+                ×○
               </div>
-              <span style={{ fontSize: 'var(--size-sm)' }}>Jogo {i}</span>
+              <span style={{ fontSize: 'var(--size-sm)' }}>Jogo da Velha</span>
             </Card>
-          ))}
+          </Link>
         </div>
       </section>
     </div>

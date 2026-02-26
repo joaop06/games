@@ -4,10 +4,11 @@ import { prisma } from "../lib/db.js";
 import {
   setAuthCookies,
   clearAuthCookies,
-  signAccessToken,
   signRefreshToken,
+  signWsToken,
   verifyRefreshToken,
 } from "../lib/auth.js";
+import { requireAuth } from "../lib/auth.js";
 import { registerSchema, loginSchema } from "../lib/validation.js";
 
 async function authRoutes(fastify: FastifyInstance) {
@@ -60,6 +61,11 @@ async function authRoutes(fastify: FastifyInstance) {
         createdAt: user.createdAt,
       },
     });
+  });
+
+  fastify.get("/api/auth/ws-token", { preHandler: requireAuth }, async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!request.userId) return reply.status(401).send({ error: "Unauthorized" });
+    return reply.send({ token: signWsToken(request.userId) });
   });
 
   fastify.post("/api/auth/logout", async (_request, reply: FastifyReply) => {

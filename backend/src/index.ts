@@ -2,9 +2,12 @@ import Fastify from "fastify";
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
+import websocket from "@fastify/websocket";
 import authRoutes from "./routes/auth.js";
 import userRoutes from "./routes/users.js";
 import friendRoutes from "./routes/friends.js";
+import ticTacToeRoutes from "./routes/games/tic-tac-toe.js";
+import { registerWebSocket } from "./ws/handler.js";
 
 const app = Fastify({ logger: true });
 
@@ -18,9 +21,12 @@ await app.register(rateLimit, {
   timeWindow: "1 minute",
 });
 
+await app.register(websocket);
 await app.register(authRoutes);
 await app.register(userRoutes);
 await app.register(friendRoutes);
+await app.register(ticTacToeRoutes);
+await registerWebSocket(app);
 
 app.get("/health", async () => ({ status: "ok" }));
 
