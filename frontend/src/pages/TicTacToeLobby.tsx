@@ -1,36 +1,33 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import { Link, useNavigate } from 'react-router-dom'
 import { useRealtime } from '../context/RealtimeContext'
-import { api, type TicTacToeMatchListItem } from '../api/client'
-import { Alert, Button, Card } from '../components/ui'
+import { api } from '../api/client'
+import { Button, Card } from '../components/ui'
+import TicTacToeIcon from '../components/tic-tac-toe/TicTacToeIcon'
+
+const ONLINE_POLL_INTERVAL_MS = 20_000
 
 export default function TicTacToeLobby() {
   const navigate = useNavigate()
-  const { user } = useAuth()
   const { connection, subscribe } = useRealtime()
-  const [matches, setMatches] = useState<TicTacToeMatchListItem[]>([])
-  const [loading, setLoading] = useState(true)
   const [searching, setSearching] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [onlineCount, setOnlineCount] = useState<number | null>(null)
+  const [searchingDots, setSearchingDots] = useState('.')
 
   useEffect(() => {
-    api
-      .listTicTacToeMatches({ limit: 20 })
-      .then((res) => {
-        setMatches(res.matches)
-        setError(null)
-      })
-      .catch((err) => {
-        const msg =
-          err instanceof Error
-            ? err.message === 'Failed to fetch'
-              ? 'Não foi possível conectar ao servidor. Verifique sua conexão.'
-              : err.message
-            : 'Falha ao carregar partidas'
-        setError(msg)
-      })
-      .finally(() => setLoading(false))
+    connection.send({ type: 'join_lobby', gameType: 'tic_tac_toe' })
+    return () => {
+      connection.send({ type: 'leave_lobby', gameType: 'tic_tac_toe' })
+    }
+  }, [connection])
+
+  useEffect(() => {
+    const fetchCount = () => {
+      api.getTicTacToeOnlineCount().then(({ count }) => setOnlineCount(count)).catch(() => {})
+    }
+    fetchCount()
+    const interval = setInterval(fetchCount, ONLINE_POLL_INTERVAL_MS)
+    return () => clearInterval(interval)
   }, [])
 
   useEffect(() => {
@@ -43,8 +40,15 @@ export default function TicTacToeLobby() {
     return unsub
   }, [subscribe, navigate])
 
+  useEffect(() => {
+    if (!searching) return
+    const id = setInterval(() => {
+      setSearchingDots((d) => (d.length >= 3 ? '.' : d + '.'))
+    }, 400)
+    return () => clearInterval(id)
+  }, [searching])
+
   const handleSearchMatch = useCallback(() => {
-    setError(null)
     setSearching(true)
     connection.send({ type: 'join_queue', gameType: 'tic_tac_toe' })
   }, [connection])
@@ -54,74 +58,72 @@ export default function TicTacToeLobby() {
     setSearching(false)
   }, [connection])
 
-  const activeRaw = matches.filter(
-    (m) => (m.playerX.id === user?.id || m.playerO?.id === user?.id) && (m.status === 'waiting' || m.status === 'in_progress')
-  )
-  const inProgressMatches = activeRaw.filter((m) => m.status === 'in_progress')
-  const waitingAsO = activeRaw.filter((m) => m.status === 'waiting' && m.playerO?.id === user?.id)
-  const waitingAsX = activeRaw
-    .filter((m) => m.status === 'waiting' && m.playerX.id === user?.id)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 1)
-  const myActiveMatches = [...inProgressMatches, ...waitingAsO, ...waitingAsX]
-
   return (
-    <div>
-      <h1 style={{ fontFamily: 'var(--font-display)', marginBottom: 'var(--space-4)' }}>Jogo da Velha</h1>
-      <p style={{ color: 'var(--text-muted)', marginBottom: 'var(--space-6)' }}>
+    <div className="tic-tac-toe-lobby">
+      <header className="tic-tac-toe-lobby__hero">
+        <TicTacToeIcon className="tic-tac-toe-lobby__hero-icon" />
+        <h1>Jogo da Velha</h1>
+      </header>
+
+      <p className="tic-tac-toe-lobby__desc">
         Entre na fila para jogar contra outro jogador ou desafie um amigo pela página de Amigos.
       </p>
 
-      {error && (
-        <Alert variant="error" style={{ marginBottom: 'var(--space-3)' }}>
-          {error}
-        </Alert>
+      {onlineCount !== null && (
+        <div className="tic-tac-toe-lobby__badge" role="status" aria-live="polite">
+          <span className="tic-tac-toe-lobby__badge-dot" aria-hidden />
+          <span>
+            {onlineCount} jogador{onlineCount !== 1 ? 'es' : ''} online
+          </span>
+        </div>
       )}
 
-      <section style={{ marginBottom: 'var(--space-6)' }}>
-        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--size-lg)', marginBottom: 'var(--space-3)' }}>
-          Nova partida
-        </h2>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
-          <Button
-            className="lobby-btn"
-            onClick={handleSearchMatch}
-            disabled={searching}
-          >
-            {searching ? 'Procurando oponente...' : 'Procurar partida'}
-          </Button>
-          {searching && (
-            <Button variant="ghost" className="lobby-btn" onClick={handleLeaveQueue}>
-              Cancelar
+      <div className="tic-tac-toe-lobby__cards">
+        <Card glow style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--size-lg)', margin: 0 }}>
+            Nova partida
+          </h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: 'var(--size-sm)', margin: 0 }}>
+            Encontre um oponente aleatório na fila.
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
+            <Button
+              className="lobby-btn"
+              onClick={handleSearchMatch}
+              disabled={searching}
+            >
+              {searching ? `Procurando oponente${searchingDots}` : 'Procurar partida'}
             </Button>
-          )}
-        </div>
-      </section>
-
-      <section style={{ marginBottom: 'var(--space-6)' }}>
-        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--size-lg)', marginBottom: 'var(--space-3)' }}>
-          Suas partidas
-        </h2>
-        {loading ? (
-          <p style={{ color: 'var(--text-muted)' }}>Carregando...</p>
-        ) : myActiveMatches.length === 0 ? (
-          <p style={{ color: 'var(--text-muted)' }}>Nenhuma partida ativa. Procure uma partida acima.</p>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-            {myActiveMatches.map((m) => (
-              <Card key={m.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span>
-                  {m.playerX.username} vs {m.playerO?.username ?? '...'}
-                </span>
-                <span style={{ color: 'var(--text-muted)', fontSize: 'var(--size-sm)' }}>{m.status}</span>
-                <Button size="sm" className="lobby-btn" onClick={() => navigate(`/games/tic-tac-toe/match/${m.id}`)}>
-                  Entrar
-                </Button>
-              </Card>
-            ))}
+            {searching && (
+              <Button variant="ghost" className="lobby-btn" onClick={handleLeaveQueue}>
+                Cancelar
+              </Button>
+            )}
           </div>
-        )}
-      </section>
+        </Card>
+
+        <Link to="/friends" className="tic-tac-toe-lobby__friend-card">
+          <Card
+            style={{
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 'var(--space-3)',
+              transition: 'box-shadow var(--transition-fast), border-color var(--transition-fast)',
+            }}
+          >
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--size-lg)', margin: 0 }}>
+              Desafie um amigo
+            </h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: 'var(--size-sm)', margin: 0, flex: 1 }}>
+              Convide um amigo e jogue uma partida.
+            </p>
+            <span style={{ color: 'var(--accent)', fontSize: 'var(--size-sm)', fontWeight: 'var(--weight-bold)' }}>
+              Ir para Amigos →
+            </span>
+          </Card>
+        </Link>
+      </div>
     </div>
   )
 }

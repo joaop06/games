@@ -151,6 +151,9 @@ export const api = {
     const q = limit != null ? `?limit=${limit}` : ''
     return request(`/api/games/tic-tac-toe/leaderboard${q}`)
   },
+  async getTicTacToeOnlineCount(): Promise<{ count: number }> {
+    return request('/api/games/tic-tac-toe/online')
+  },
 }
 
 export type TicTacToeBoard = (null | 'X' | 'O')[]

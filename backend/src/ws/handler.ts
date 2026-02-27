@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { WebSocket } from "ws";
 import { randomUUID } from "crypto";
+import { In } from "typeorm";
 import { AppDataSource, getRepository } from "../lib/db.js";
 import { Match } from "../entities/Match.js";
 import { Move } from "../entities/Move.js";
@@ -30,12 +31,21 @@ const userConnections = new Map<string, Set<WebSocket>>();
 type QueueEntry = { userId: string; joinedAt: number };
 const matchmakingQueue = new Map<string, QueueEntry[]>();
 
+const lobbyPresence = new Map<string, Set<string>>();
+
 function removeFromQueue(gameType: string, userId: string) {
   const q = matchmakingQueue.get(gameType);
   if (!q) return;
   const idx = q.findIndex((e) => e.userId === userId);
   if (idx !== -1) q.splice(idx, 1);
   if (q.length === 0) matchmakingQueue.delete(gameType);
+}
+
+function removeFromLobby(gameType: string, userId: string) {
+  const set = lobbyPresence.get(gameType);
+  if (!set) return;
+  set.delete(userId);
+  if (set.size === 0) lobbyPresence.delete(gameType);
 }
 
 async function tryMatchTicTacToe() {
@@ -196,13 +206,11 @@ async function endMatchIfActiveAndNotifyOpponent(
     removeConnection(matchId, socket);
     return;
   }
-  if (match.status !== "waiting" && match.status !== "in_progress") {
-    removeConnection(matchId, socket);
-    return;
-  }
-  await getRepository(Match).update({ id: matchId }, { status: "abandoned" });
   const opponentId =
     match.playerXId === userId ? match.playerOId : match.playerXId;
+  if (match.status === "waiting" || match.status === "in_progress") {
+    await getRepository(Match).update({ id: matchId }, { status: "abandoned" });
+  }
   if (opponentId) {
     sendToUser(opponentId, { type: "match_ended", matchId });
   }
@@ -273,6 +281,27 @@ async function updateStatsForFinishedMatch(
   });
 }
 
+export async function getTicTacToeOnlineCount(): Promise<number> {
+  const ids = new Set<string>();
+
+  const activeMatches = await getRepository(Match).find({
+    where: { gameType: TIC_TAC_TOE_GAME_TYPE, status: In(["waiting", "in_progress"]) },
+    select: ["id"],
+  });
+  for (const m of activeMatches) {
+    const conns = matchConnections.get(m.id);
+    if (conns) for (const c of conns) ids.add(c.userId);
+  }
+
+  const queue = matchmakingQueue.get(TIC_TAC_TOE_GAME_TYPE);
+  if (queue) for (const e of queue) ids.add(e.userId);
+
+  const lobby = lobbyPresence.get(TIC_TAC_TOE_GAME_TYPE);
+  if (lobby) for (const uid of lobby) ids.add(uid);
+
+  return ids.size;
+}
+
 export async function registerWebSocket(server: FastifyInstance) {
   server.get("/ws", { websocket: true }, (socket, request) => {
     const url = new URL(request.url ?? "", "http://localhost");
@@ -324,6 +353,27 @@ export async function registerWebSocket(server: FastifyInstance) {
         if (data.type === "leave_queue") {
         const gameType = data.gameType ?? TIC_TAC_TOE_GAME_TYPE;
         removeFromQueue(gameType, userId);
+        return;
+        }
+
+        if (data.type === "join_lobby") {
+        const gameType = data.gameType ?? TIC_TAC_TOE_GAME_TYPE;
+        if (gameType !== TIC_TAC_TOE_GAME_TYPE) {
+          sendWsError(server, socket, userId, null, data.type, data, "invalid_payload", "Unsupported game type");
+          return;
+        }
+        let set = lobbyPresence.get(gameType);
+        if (!set) {
+          set = new Set();
+          lobbyPresence.set(gameType, set);
+        }
+        set.add(userId);
+        return;
+        }
+
+        if (data.type === "leave_lobby") {
+        const gameType = data.gameType ?? TIC_TAC_TOE_GAME_TYPE;
+        removeFromLobby(gameType, userId);
         return;
         }
 
@@ -478,6 +528,7 @@ export async function registerWebSocket(server: FastifyInstance) {
       }
       removeUserConnection(userId, socket);
       removeFromQueue(TIC_TAC_TOE_GAME_TYPE, userId);
+      removeFromLobby(TIC_TAC_TOE_GAME_TYPE, userId);
     });
   });
 }

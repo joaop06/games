@@ -110,7 +110,7 @@ Definidos em `src/index.css` na `:root`.
   - **Home:** grids de atalhos e jogos em 1 coluna no mobile; a partir de 480px, várias colunas (`auto-fill` com `minmax`).
   - **Login / Register:** card centralizado; padding da página menor no mobile; inputs e botão submit com min-height 44px.
   - **Friends:** formulário “Convidar” em coluna no mobile (input e botão full-width); a partir de 480px, linha com input flex e botão ao lado.
-  - **TicTacToe Lobby:** listas já em coluna; botão "Procurar partida" e "Entrar" com área de toque 44px.
+  - **TicTacToe Lobby:** Hero com ícone do tabuleiro (SVG) e título em destaque (gradient-hero, borda e sombra); texto introdutório; badge "X jogadores online" com bolinha verde (live) e borda/glow accent; grid de dois cards: (1) "Nova partida" em Card com glow, botão "Procurar partida" e "Cancelar" (estado "Procurando oponente…" com animação de reticências), (2) "Desafie um amigo" em Card clicável (link para /friends) com hover em glow; botões com área de toque 44px; em mobile os cards em coluna, a partir de 480px em 2 colunas. Classes em `index.css`: `.tic-tac-toe-lobby`, `__hero`, `__badge`, `__cards`, `__friend-card`.
   - **TicTacToe Match:** cabeçalho com “← Lobby” e título permite quebra de linha; board centralizado com células responsivas (`clamp`); botões com altura tátil.
   - **Notificações:** painel dropdown com `max-width` limitado ao viewport no mobile (`calc(100vw - var(--space-8))`); ícone do sino com min 44px.
 

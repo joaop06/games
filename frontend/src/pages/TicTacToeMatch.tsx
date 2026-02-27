@@ -5,7 +5,8 @@ import { useRealtime } from '../context/RealtimeContext'
 import { api, type TicTacToeMatchState } from '../api/client'
 import { getUserMessage } from '../lib/userMessages'
 import Board from '../components/tic-tac-toe/Board'
-import { Alert, Button } from '../components/ui'
+import TicTacToeIcon from '../components/tic-tac-toe/TicTacToeIcon'
+import { Alert, Button, Card } from '../components/ui'
 
 const emptyState: TicTacToeMatchState = {
   id: '',
@@ -139,17 +140,33 @@ export default function TicTacToeMatch() {
 
   if (!matchId) {
     return (
-      <div>
-        <p>Partida não encontrada.</p>
-        <Button variant="ghost" onClick={() => navigate('/games/tic-tac-toe')}>
-          Voltar ao lobby
-        </Button>
+      <div className="tic-tac-toe-match">
+        <header className="tic-tac-toe-match__hero">
+          <TicTacToeIcon className="tic-tac-toe-match__hero-icon" />
+          <h1>Jogo da Velha</h1>
+        </header>
+        <Card style={{ marginBottom: 'var(--space-4)' }}>
+          <p style={{ color: 'var(--text-muted)', margin: '0 0 var(--space-4)' }}>Partida não encontrada.</p>
+          <Button variant="ghost" className="lobby-btn" onClick={() => navigate('/games/tic-tac-toe')}>
+            Voltar ao lobby
+          </Button>
+        </Card>
       </div>
     )
   }
 
   if (connecting) {
-    return <p style={{ color: 'var(--text-muted)' }}>Conectando à partida...</p>
+    return (
+      <div className="tic-tac-toe-match">
+        <header className="tic-tac-toe-match__hero">
+          <TicTacToeIcon className="tic-tac-toe-match__hero-icon" />
+          <h1>Jogo da Velha</h1>
+        </header>
+        <div className="tic-tac-toe-match__status" role="status">
+          Conectando à partida...
+        </div>
+      </div>
+    )
   }
 
   const isFinished = state.status === 'finished'
@@ -159,73 +176,92 @@ export default function TicTacToeMatch() {
       : state.playerO?.username
     : null
 
+  const statusText =
+    state.status === 'waiting'
+      ? 'Aguardando segundo jogador...'
+      : state.status === 'in_progress' && !state.winnerId
+        ? myRole === state.currentTurn
+          ? 'Sua vez!'
+          : `Vez de ${opponentName}`
+        : isFinished
+          ? state.winnerId
+            ? state.winnerId === user?.id
+              ? 'Você venceu!'
+              : `${winnerName ?? 'Oponente'} venceu!`
+            : 'Empate!'
+          : ''
+
   return (
-    <div>
-      <div className="match-header">
-        <Button variant="ghost" size="sm" className="match-back-btn" onClick={() => navigate('/games/tic-tac-toe')}>
+    <div className="tic-tac-toe-match">
+      <header className="tic-tac-toe-match__hero">
+        <TicTacToeIcon className="tic-tac-toe-match__hero-icon" />
+        <h1>Jogo da Velha</h1>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="tic-tac-toe-match__back-btn"
+          onClick={() => navigate('/games/tic-tac-toe')}
+        >
           ← Lobby
         </Button>
-        <h1 style={{ fontFamily: 'var(--font-display)', margin: 0 }}>Jogo da Velha</h1>
-      </div>
+      </header>
 
       {error && (
-        <Alert variant="error" style={{ marginBottom: 'var(--space-3)' }}>
+        <Alert variant="error" style={{ marginBottom: 'var(--space-4)' }}>
           {error}
         </Alert>
       )}
 
-      <p style={{ color: 'var(--text-muted)', marginBottom: 'var(--space-4)' }}>
-        {state.status === 'waiting' && 'Aguardando segundo jogador...'}
-        {state.status === 'in_progress' &&
-          !state.winnerId &&
-          (myRole === state.currentTurn ? 'Sua vez!' : `Vez de ${opponentName}`)}
-        {isFinished &&
-          (state.winnerId
-            ? state.winnerId === user?.id
-              ? 'Você venceu!'
-              : `${winnerName ?? 'Oponente'} venceu!`
-            : 'Empate!')}
-      </p>
+      <div className="tic-tac-toe-match__status" role="status">
+        {statusText}
+      </div>
 
-      <Board
-        board={state.board}
-        currentTurn={state.currentTurn}
-        status={state.status}
-        winnerId={state.winnerId}
-        myRole={myRole}
-        onCellClick={handleCellClick}
-        disabled={isFinished}
-      />
+      <div className="tic-tac-toe-match__board-wrap">
+        <Board
+          board={state.board}
+          currentTurn={state.currentTurn}
+          status={state.status}
+          winnerId={state.winnerId}
+          myRole={myRole}
+          onCellClick={handleCellClick}
+          disabled={isFinished}
+        />
+      </div>
 
       {isFinished && (
-        <div style={{ marginTop: 'var(--space-5)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-          <Button onClick={handleNewMatch} disabled={rematchLoading}>
-            {rematchLoading ? 'Criando...' : opponent ? `Nova partida (contra ${opponent.username})` : 'Nova partida'}
-          </Button>
-          {opponent && !friendIds.has(opponent.id) && (
-            <>
-              {addFriendStatus === 'idle' && (
-                <Button variant="ghost" size="sm" onClick={handleAddFriend}>
-                  Adicionar como amigo
-                </Button>
-              )}
-              {addFriendStatus === 'loading' && (
-                <span style={{ color: 'var(--text-muted)', fontSize: 'var(--size-sm)' }}>Enviando convite...</span>
-              )}
-              {addFriendStatus === 'sent' && (
-                <span style={{ color: 'var(--text-muted)', fontSize: 'var(--size-sm)' }}>Convite enviado</span>
-              )}
-              {addFriendStatus === 'already_friends' && (
-                <span style={{ color: 'var(--text-muted)', fontSize: 'var(--size-sm)' }}>Já são amigos</span>
-              )}
-            </>
-          )}
-          {opponent && (
-            <Button variant="ghost" size="sm" onClick={() => navigate('/games/tic-tac-toe')}>
-              Voltar ao lobby
+        <Card glow style={{ padding: 'var(--space-5)' }}>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--size-lg)', margin: '0 0 var(--space-4)' }}>
+            Partida encerrada
+          </h2>
+          <div className="tic-tac-toe-match__actions">
+            <Button className="lobby-btn" onClick={handleNewMatch} disabled={rematchLoading}>
+              {rematchLoading ? 'Criando...' : opponent ? `Nova partida (contra ${opponent.username})` : 'Nova partida'}
             </Button>
-          )}
-        </div>
+            {opponent && !friendIds.has(opponent.id) && (
+              <>
+                {addFriendStatus === 'idle' && (
+                  <Button variant="ghost" size="sm" className="lobby-btn" onClick={handleAddFriend}>
+                    Adicionar como amigo
+                  </Button>
+                )}
+                {addFriendStatus === 'loading' && (
+                  <span style={{ color: 'var(--text-muted)', fontSize: 'var(--size-sm)' }}>Enviando convite...</span>
+                )}
+                {addFriendStatus === 'sent' && (
+                  <span style={{ color: 'var(--text-muted)', fontSize: 'var(--size-sm)' }}>Convite enviado</span>
+                )}
+                {addFriendStatus === 'already_friends' && (
+                  <span style={{ color: 'var(--text-muted)', fontSize: 'var(--size-sm)' }}>Já são amigos</span>
+                )}
+              </>
+            )}
+            {opponent && (
+              <Button variant="ghost" size="sm" className="lobby-btn" onClick={() => navigate('/games/tic-tac-toe')}>
+                Voltar ao lobby
+              </Button>
+            )}
+          </div>
+        </Card>
       )}
     </div>
   )

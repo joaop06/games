@@ -10,7 +10,7 @@ import { Notification } from "../../entities/Notification.js";
 import { UserGameStats } from "../../entities/UserGameStats.js";
 import { FriendGameRecord } from "../../entities/FriendGameRecord.js";
 import { requireAuth } from "../../lib/auth.js";
-import { sendToUser, broadcastMatch } from "../../ws/handler.js";
+import { sendToUser, broadcastMatch, getTicTacToeOnlineCount } from "../../ws/handler.js";
 import {
   createTicTacToeMatchSchema,
   listMatchesQuerySchema,
@@ -127,6 +127,22 @@ async function ticTacToeRoutes(fastify: FastifyInstance) {
           ],
         });
         if (opponentInMatch) {
+          const currentUserIsInSameMatch =
+            opponentInMatch.playerXId === request.userId ||
+            opponentInMatch.playerOId === request.userId;
+          if (currentUserIsInSameMatch) {
+            const existing = await matchRepo.findOne({
+              where: { id: opponentInMatch.id },
+              relations: { playerX: true, playerO: true, moves: true },
+            });
+            if (existing) {
+              const state = buildMatchState({
+                ...existing,
+                moves: (existing.moves ?? []).map((m: Move) => ({ position: m.position, playerId: m.playerId })),
+              } as BuildMatchStateArg);
+              return reply.status(201).send({ match: state });
+            }
+          }
           const invitedToThisMatch =
             opponentInMatch.status === "waiting" &&
             (await getRepository(Notification).findOne({
@@ -295,6 +311,15 @@ async function ticTacToeRoutes(fastify: FastifyInstance) {
       } as BuildMatchStateArg);
       broadcastMatch(match.id, { type: "match_state", ...state });
       return reply.send({ match: state });
+    }
+  );
+
+  fastify.get(
+    "/api/games/tic-tac-toe/online",
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      if (!request.userId) return reply.status(401).send({ error: "Unauthorized" });
+      const count = await getTicTacToeOnlineCount();
+      return reply.send({ count });
     }
   );
 
