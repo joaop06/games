@@ -7,6 +7,7 @@ import { Move } from "../entities/Move.js";
 import { UserGameStats } from "../entities/UserGameStats.js";
 import { FriendGameRecord } from "../entities/FriendGameRecord.js";
 import { verifyWsToken } from "../lib/auth.js";
+import { sanitizeForLog } from "../lib/logger.js";
 import {
   getWinner,
   isDraw,
@@ -107,6 +108,36 @@ function send(ws: WebSocket, payload: object) {
   if (ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify(payload));
   }
+}
+
+function sendWsError(
+  server: FastifyInstance,
+  socket: WebSocket,
+  userId: string,
+  matchId: string | null,
+  messageType: string | undefined,
+  payload: unknown,
+  code: string,
+  message: string,
+  err?: Error
+) {
+  const logPayload = {
+    msg: "WebSocket error",
+    userId,
+    matchId: matchId ?? undefined,
+    messageType,
+    payload: sanitizeForLog(
+      payload != null && typeof payload === "object" && !Array.isArray(payload) ? payload : undefined
+    ),
+    code,
+    errorMessage: message,
+    ...(err != null && {
+      err: { type: err.name, message: err.message, stack: err.stack },
+    }),
+  };
+  if (err != null) server.log.error(logPayload, err.message);
+  else server.log.warn(logPayload);
+  send(socket, { type: "error", code, message });
 }
 
 function addUserConnection(userId: string, ws: WebSocket) {
@@ -235,7 +266,7 @@ export async function registerWebSocket(server: FastifyInstance) {
       try {
         data = JSON.parse(raw.toString());
       } catch {
-        send(socket, { type: "error", code: "invalid_json", message: "Invalid JSON" });
+        sendWsError(server, socket, userId, null, undefined, undefined, "invalid_json", "Invalid JSON");
         return;
       }
 
@@ -243,7 +274,7 @@ export async function registerWebSocket(server: FastifyInstance) {
         if (data.type === "join_queue") {
         const gameType = data.gameType ?? TIC_TAC_TOE_GAME_TYPE;
         if (gameType !== TIC_TAC_TOE_GAME_TYPE) {
-          send(socket, { type: "error", code: "invalid_payload", message: "Unsupported game type" });
+          sendWsError(server, socket, userId, null, data.type, data, "invalid_payload", "Unsupported game type");
           return;
         }
         await getRepository(Match).update(
@@ -274,7 +305,7 @@ export async function registerWebSocket(server: FastifyInstance) {
         if (data.type === "join_match") {
         const matchId = data.matchId;
         if (!matchId || typeof matchId !== "string") {
-          send(socket, { type: "error", code: "invalid_payload", message: "matchId required" });
+          sendWsError(server, socket, userId, null, data.type, data, "invalid_payload", "matchId required");
           return;
         }
         const match = await getRepository(Match).findOne({
@@ -282,12 +313,12 @@ export async function registerWebSocket(server: FastifyInstance) {
           relations: { playerX: true, playerO: true, moves: true },
         });
         if (!match) {
-          send(socket, { type: "error", code: "not_found", message: "Match not found" });
+          sendWsError(server, socket, userId, matchId, data.type, data, "not_found", "Match not found");
           return;
         }
         const isPlayer = match.playerXId === userId || match.playerOId === userId;
         if (!isPlayer) {
-          send(socket, { type: "error", code: "forbidden", message: "Not a player in this match" });
+          sendWsError(server, socket, userId, matchId, data.type, data, "forbidden", "Not a player in this match");
           return;
         }
         if (currentMatchId) removeConnection(currentMatchId, socket);
@@ -318,11 +349,11 @@ export async function registerWebSocket(server: FastifyInstance) {
         const matchId = data.matchId ?? currentMatchId;
         const position = data.position;
         if (!matchId) {
-          send(socket, { type: "error", code: "invalid_payload", message: "matchId required" });
+          sendWsError(server, socket, userId, currentMatchId, data.type, data, "invalid_payload", "matchId required");
           return;
         }
         if (typeof position !== "number" || !isValidPosition(position)) {
-          send(socket, { type: "error", code: "invalid_payload", message: "position must be 0-8" });
+          sendWsError(server, socket, userId, matchId, data.type, data, "invalid_payload", "position must be 0-8");
           return;
         }
         const match = await getRepository(Match).findOne({
@@ -330,15 +361,15 @@ export async function registerWebSocket(server: FastifyInstance) {
           relations: { moves: true, playerX: true, playerO: true },
         });
         if (!match) {
-          send(socket, { type: "error", code: "not_found", message: "Match not found" });
+          sendWsError(server, socket, userId, matchId, data.type, data, "not_found", "Match not found");
           return;
         }
         if (match.status !== "in_progress") {
-          send(socket, { type: "error", code: "invalid_state", message: "Match is not in progress" });
+          sendWsError(server, socket, userId, matchId, data.type, data, "invalid_state", "Match is not in progress");
           return;
         }
         if (!match.playerOId) {
-          send(socket, { type: "error", code: "invalid_state", message: "Waiting for second player" });
+          sendWsError(server, socket, userId, matchId, data.type, data, "invalid_state", "Waiting for second player");
           return;
         }
         const board = boardFromMoves(
@@ -347,14 +378,14 @@ export async function registerWebSocket(server: FastifyInstance) {
           match.playerOId
         );
         if (board[position] !== null) {
-          send(socket, { type: "error", code: "invalid_move", message: "Position already taken" });
+          sendWsError(server, socket, userId, matchId, data.type, data, "invalid_move", "Position already taken");
           return;
         }
         const turn = currentTurn(board);
         const isX = turn === "X";
         const currentPlayerId = isX ? match.playerXId : match.playerOId;
         if (currentPlayerId !== userId) {
-          send(socket, { type: "error", code: "not_your_turn", message: "Not your turn" });
+          sendWsError(server, socket, userId, matchId, data.type, data, "not_your_turn", "Not your turn");
           return;
         }
         const moveRepo = getRepository(Move);
@@ -400,10 +431,19 @@ export async function registerWebSocket(server: FastifyInstance) {
         return;
         }
 
-        send(socket, { type: "error", code: "unknown_type", message: "Unknown message type" });
+        sendWsError(server, socket, userId, currentMatchId, data?.type, data, "unknown_type", "Unknown message type");
       } catch (err) {
-        console.error(err);
-        send(socket, { type: "error", code: "server_error", message: "Algo deu errado. Tenta de novo." });
+        sendWsError(
+          server,
+          socket,
+          userId,
+          currentMatchId,
+          data?.type,
+          data,
+          "server_error",
+          "Algo deu errado. Tenta de novo.",
+          err instanceof Error ? err : new Error(String(err))
+        );
       }
     });
 
