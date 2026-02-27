@@ -1,13 +1,22 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { LessThan } from 'typeorm';
 import { getRepository } from '../lib/db.js';
 import { Notification } from '../entities/Notification.js';
 import { requireAuth } from '../lib/auth.js';
+
+const GAME_INVITE_EXPIRY_MINUTES = 10;
 
 async function notificationRoutes(fastify: FastifyInstance) {
   fastify.addHook('preHandler', requireAuth);
 
   fastify.get('/api/notifications', async (request: FastifyRequest, reply: FastifyReply) => {
     if (!request.userId) return reply.status(401).send({ error: 'Unauthorized' });
+    const expiryThreshold = new Date(Date.now() - GAME_INVITE_EXPIRY_MINUTES * 60 * 1000);
+    await getRepository(Notification).delete({
+      userId: request.userId,
+      type: 'game_invite',
+      createdAt: LessThan(expiryThreshold),
+    });
     const notifications = await getRepository(Notification).find({
       where: { userId: request.userId! },
       order: { createdAt: 'DESC' },
@@ -16,8 +25,11 @@ async function notificationRoutes(fastify: FastifyInstance) {
         match: { playerX: true },
       },
     });
+    const filtered = notifications.filter(
+      (n) => n.type !== 'game_invite' || new Date(n.createdAt) >= expiryThreshold
+    );
     return reply.send({
-      notifications: notifications.map((n) => ({
+      notifications: filtered.map((n) => ({
         id: n.id,
         type: n.type,
         read: n.read,
@@ -59,6 +71,15 @@ async function notificationRoutes(fastify: FastifyInstance) {
       return reply.send({ ok: true });
     }
   );
+
+  fastify.patch('/api/notifications/read-all', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!request.userId) return reply.status(401).send({ error: 'Unauthorized' });
+    await getRepository(Notification).update(
+      { userId: request.userId },
+      { read: true }
+    );
+    return reply.send({ ok: true });
+  });
 }
 
 export default notificationRoutes;

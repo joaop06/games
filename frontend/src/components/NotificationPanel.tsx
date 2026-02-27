@@ -180,6 +180,17 @@ export default function NotificationPanel() {
     } catch {}
   };
 
+  const handleMarkAllRead = async () => {
+    try {
+      await api.markAllNotificationsRead();
+      setUnreadCount(0);
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    } catch {}
+  };
+
+  const unreadNotifications = notifications.filter((n) => !n.read);
+  const hasUnread = unreadNotifications.length > 0;
+
   return (
     <div ref={panelRef} style={{ position: 'relative' }}>
       <button
@@ -201,14 +212,30 @@ export default function NotificationPanel() {
       </button>
       {open && (
         <div style={PANEL_STYLE}>
-          <div style={{ padding: 'var(--space-2)', fontWeight: 700 }}>Notificações</div>
+          <div
+            style={{
+              padding: 'var(--space-2)',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 'var(--space-2)',
+            }}
+          >
+            <span>Notificações</span>
+            {hasUnread && (
+              <Button variant="ghost" size="sm" onClick={handleMarkAllRead}>
+                Ler
+              </Button>
+            )}
+          </div>
           {loading ? (
             <div style={{ ...ITEM_STYLE, color: 'var(--text-muted)' }}>Carregando...</div>
-          ) : notifications.length === 0 ? (
+          ) : unreadNotifications.length === 0 ? (
             <div style={{ ...ITEM_STYLE, color: 'var(--text-muted)' }}>Nenhuma notificação</div>
           ) : (
             <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-              {notifications.map((n) => {
+              {unreadNotifications.map((n) => {
                 const inv = n.friendInvite;
                 const gameInv = n.gameInvite;
                 return (

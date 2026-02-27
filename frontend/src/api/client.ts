@@ -113,6 +113,9 @@ export const api = {
   async markNotificationRead(id: string): Promise<{ ok: boolean }> {
     return request(`/api/notifications/${id}/read`, { method: 'PATCH' });
   },
+  async markAllNotificationsRead(): Promise<{ ok: boolean }> {
+    return request('/api/notifications/read-all', { method: 'PATCH' });
+  },
 
   async getWsToken(): Promise<{ token: string }> {
     return request<{ token: string }>('/api/auth/ws-token');
