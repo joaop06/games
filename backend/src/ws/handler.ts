@@ -214,7 +214,8 @@ async function endMatchIfActiveAndNotifyOpponent(
   if (match.status === 'waiting' || match.status === 'in_progress') {
     await getRepository(Match).update({ id: matchId }, { status: 'abandoned' });
   }
-  if (opponentId) {
+  // Only notify opponent when match was not already finished (e.g. abandon); skip when finished so rematch/lobby leave doesn't redirect them
+  if (opponentId && match.status !== 'finished') {
     sendToUser(opponentId, { type: 'match_ended', matchId });
   }
   removeConnection(matchId, socket);
